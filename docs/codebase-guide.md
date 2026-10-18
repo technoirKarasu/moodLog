@@ -40,9 +40,9 @@ moodLog/
 | ADR | 決定したこと | 採用しなかった選択肢 | 理由 |
 |---|---|---|---|
 | 0001 | AWSで自前構成にする | Supabase, Firebase, Vercel | 「AWSの運用を自分で持つ」のが目的そのものだから（ADRではなくCLAUDE.mdの方針） |
-| 0002 | DBはRDS（コスト次第でNeonも検討） | Neon | 現時点ではRDSを優先、コストが見えたら再検討 |
+| 0002 | DBはRDS（コスト次第でNeonも検討） | Neon | 月額の見込み（約2,000〜2,500円）を出したうえで、RDSの継続を判断済み（結果欄） |
 | 0003 | backendはLambda+Mangum | ECS Fargate | ADRに理由の記載なし |
-| 0004 | 非同期処理はEventBridge→SQS→Lambda、失敗はDLQ | Lambda直接スケジュール | 失敗時にリトライ/隔離できる仕組みが欲しかった |
+| 0004 | 非同期処理はEventBridge→SQS→Lambda、失敗はDLQ | Lambda直接スケジュール | 直接スケジュールではDLQによる失敗ハンドリングができないため |
 | 0005 | frontendはS3+CloudFront静的配信 | Vercel | AWSの運用を自分で持つ方針に反するため |
 | 0006 | GitHub Actions用IAMロールに当面AdministratorAccessを付与する | 最初から最小権限のカスタムポリシー | リソースが増える初期段階で、都度ポリシーを直すコストが大きい。#14 で必要な操作が決まったら絞る |
 
@@ -145,7 +145,7 @@ def test_health_returns_200_when_db_is_reachable():
 ```
 
 - `TestClient`：本物のHTTP通信をせずにFastAPIアプリをテストするためのラッパー。
-- `patch("app.main.check_connection", ...)`：**`app.db.check_connection`ではなく`app.main.check_connection`をパッチしている**点に注意。`main.py`が`from app.db import check_connection`とした時点で、`check_connection`という名前自体が`app.main`モジュールの中にもコピーされる。Pythonのmockは「その名前が実際に定義/参照されているモジュール」単位でパッチするため、importした先（`app.main`）を書き換える必要がある。ここを`app.db.check_connection`にすると、パッチが効かず本物のDB接続が走る。DBが起動していなければテストは失敗し、ローカルのDockerのDBが起動していると**偶然通ってしまい、パッチが効いていないことに気づけない**。今後`main.py`に新しいエンドポイントを増やしてテストを書くときに必ず踏みやすい落とし穴。
+- `patch("app.main.check_connection", ...)`：**`app.db.check_connection`ではなく`app.main.check_connection`をパッチしている**点に注意。`main.py`が`from app.db import check_connection`とした時点で、`check_connection`という名前自体が`app.main`モジュールの中にもコピーされる。Pythonのmockは「その名前が実際に定義/参照されているモジュール」単位でパッチするため、importした先（`app.main`）を書き換える必要がある。ここを`app.db.check_connection`にすると、パッチが効かず本物のDB接続が走る。テストは200（DB接続成功）と503（DB接続失敗）の2本ある。ローカルのDockerのDBが起動していると、200のテストは**偶然通ってしまい、パッチが効いていないことに気づけない**（503のテストは失敗する）。DBが起動していなければ逆になる。今後`main.py`に新しいエンドポイントを増やしてテストを書くときに必ず踏みやすい落とし穴。
 
 ### 3.6 Alembic（マイグレーション管理）
 
@@ -315,7 +315,7 @@ resource "aws_ssm_parameter" "database_url" {
 ```
 - アプリが使う接続文字列（3.2の`DATABASE_URL`と同じ形式）を組み立てて、SSM Parameter Storeに保存する。
 - `SecureString`：暗号化して保存する種類。読むにはIAMの権限が必要。
-- これで「パスワードを人が見ることも、コードに書くこともない」状態になる。Lambdaがこの値をどう読むかはIssue #10で決める。
+- これでパスワードをコードに書かずに済む。ただし、この値もtfstateに入るので、tfstateを読める人と、SSMの読み取り権限を持つ人は読める（`random_password`の注意点と同じ）。Lambdaがこの値をどう読むかはIssue #10で決める。
 
 ### 4.4 `variables.tf` / `outputs.tf`
 
