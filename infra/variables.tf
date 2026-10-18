@@ -21,3 +21,9 @@ variable "github_actions_role_name" {
   type        = string
   default     = "moodlog-github-actions"
 }
+
+variable "db_instance_class" {
+  description = "RDSのインスタンスクラス"
+  type        = string
+  default     = "db.t4g.micro"
+}
