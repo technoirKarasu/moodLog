@@ -20,7 +20,7 @@ moodLog/
 └── frontend/     Next.js。まだREADMEのみで未実装
 ```
 
-今のところ実際に動いているのは「ローカルPC上でFastAPI + Dockerの Postgres」だけです。AWS向けのTerraformコード（OIDC・RDS・SSM）は書いてありますが、まだ `terraform apply` していないので、AWS上には何もありません。
+今のところ実際に動いているのは「ローカルPC上でFastAPI + Dockerの Postgres」だけです。AWS向けのTerraformコード（OIDC・RDS・SSM）は書いてありますが、まだ `terraform apply` していません。AWS上にあるのは、Terraformの管理外で用意したtfstate用のS3バケット（4.1）だけです。
 
 ### データの流れ（将来像）
 
@@ -39,9 +39,9 @@ moodLog/
 
 | ADR | 決定したこと | 採用しなかった選択肢 | 理由 |
 |---|---|---|---|
-| 0001 | AWSで自前構成にする | Supabase, Firebase, Vercel | 「AWSの運用を自分で持つ」のが目的そのものだから |
+| 0001 | AWSで自前構成にする | Supabase, Firebase, Vercel | 「AWSの運用を自分で持つ」のが目的そのものだから（ADRではなくCLAUDE.mdの方針） |
 | 0002 | DBはRDS（コスト次第でNeonも検討） | Neon | 現時点ではRDSを優先、コストが見えたら再検討 |
-| 0003 | backendはLambda+Mangum | ECS Fargate | サーバーレスで常時起動コストを避ける |
+| 0003 | backendはLambda+Mangum | ECS Fargate | ADRに理由の記載なし |
 | 0004 | 非同期処理はEventBridge→SQS→Lambda、失敗はDLQ | Lambda直接スケジュール | 失敗時にリトライ/隔離できる仕組みが欲しかった |
 | 0005 | frontendはS3+CloudFront静的配信 | Vercel | AWSの運用を自分で持つ方針に反するため |
 | 0006 | GitHub Actions用IAMロールに当面AdministratorAccessを付与する | 最初から最小権限のカスタムポリシー | リソースが増える初期段階で、都度ポリシーを直すコストが大きい。#14 で必要な操作が決まったら絞る |
@@ -145,7 +145,7 @@ def test_health_returns_200_when_db_is_reachable():
 ```
 
 - `TestClient`：本物のHTTP通信をせずにFastAPIアプリをテストするためのラッパー。
-- `patch("app.main.check_connection", ...)`：**`app.db.check_connection`ではなく`app.main.check_connection`をパッチしている**点に注意。`main.py`が`from app.db import check_connection`とした時点で、`check_connection`という名前自体が`app.main`モジュールの中にもコピーされる。Pythonのmockは「その名前が実際に定義/参照されているモジュール」単位でパッチするため、importした先（`app.main`）を書き換える必要がある。ここを`app.db.check_connection`にすると、このテストは**失敗する**。今後`main.py`に新しいエンドポイントを増やしてテストを書くときに必ず踏みやすい落とし穴。
+- `patch("app.main.check_connection", ...)`：**`app.db.check_connection`ではなく`app.main.check_connection`をパッチしている**点に注意。`main.py`が`from app.db import check_connection`とした時点で、`check_connection`という名前自体が`app.main`モジュールの中にもコピーされる。Pythonのmockは「その名前が実際に定義/参照されているモジュール」単位でパッチするため、importした先（`app.main`）を書き換える必要がある。ここを`app.db.check_connection`にすると、パッチが効かず本物のDB接続が走る。DBが起動していなければテストは失敗し、ローカルのDockerのDBが起動していると**偶然通ってしまい、パッチが効いていないことに気づけない**。今後`main.py`に新しいエンドポイントを増やしてテストを書くときに必ず踏みやすい落とし穴。
 
 ### 3.6 Alembic（マイグレーション管理）
 
@@ -352,7 +352,7 @@ resource "aws_ssm_parameter" "database_url" {
 | 完了 | ADR記録（0001〜0006）、monorepo構成、Terraform実行基盤(OIDC)、FastAPI最小構成（`/health`のみ）、#9 DB・シークレット管理（コードのみ。未apply） |
 | 未着手 | #6 AWSアカウント初期設定 / #10 Lambda+API Gateway / #11 Next.js最小ページ / #12 S3+CloudFront / #13 EventBridge定期ジョブ / #14 CI/CD / #15 ブランチ保護 / #16 運用確認・ADR記載 / #25 tfstateバケットの東京移行 / #28 ruff導入 |
 
-**今はAWS上には何もデプロイされていない。** Terraformのコードはあるが`terraform apply`はまだ。ローカルのDocker+FastAPIだけが動く状態。
+**今はAWS上に何もデプロイされていない。** Terraformのコードはあるが`terraform apply`はまだ（AWS上にあるのはtfstate用のS3バケットだけ）。ローカルのDocker+FastAPIだけが動く状態。
 
 ---
 
