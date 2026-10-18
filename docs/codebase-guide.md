@@ -84,7 +84,7 @@ config.py → db.py → main.py ──(Mangum)── Lambda moodlog-api
                     batch/weekly_summary.py ── Lambda moodlog-weekly-summary
 ```
 
-**Lambdaは2つあるが、zipは1つ**です。`build_lambda.sh` が `app/` ごと1つのzipにし、Terraformで「どの関数を入口にするか（`handler`）」だけを変えています（3.8、4.6）。
+**Lambdaは2つあるが、zipは1つ**です。`build_lambda.sh` が `app/` ごと1つのzipにし、Terraformで「どの関数を入口にするか（`handler`）」だけを変えています（3.8、4.4、4.7）。
 
 ### 3.2 `app/config.py`
 
@@ -253,7 +253,7 @@ cp -R "${backend_dir}/app" "${package_dir}/app"
 
 - `docker-compose.yml`：Postgres 16をローカルに立てる。user/pass/db名はすべて`moodlog`で、`config.py`のデフォルト接続文字列と一致させてある。RDSも同じPostgreSQL 16。
 - `requirements.txt` / `requirements-dev.txt`：全パッケージを`==`で完全ピン留め。バージョンを上げるときは手で書き換える。Pythonは Lambdaに合わせて 3.13（`backend/README.md`）。
-- `ruff.toml`（#55で追加）：Pythonのlinter。
+- `ruff.toml`（#28で追加）：Pythonのlinter。
   - `select = ["E", "F", "I", "B", "UP"]`：使うルールを明示している。既定のルールはruffのバージョンで変わるため、上げたときに突然エラーが増えないようにする。
     - E: PEP 8の書き方 / F: 未使用のimportや未定義の変数 / I: importの並び順 / B: bugbear（バグになりやすい書き方） / UP: 古い書き方を新しいPythonの書き方に
   - `extend-exclude = ["alembic/versions"]`：自動生成されるマイグレーションファイルは対象外。
@@ -599,7 +599,7 @@ resource "aws_cloudfront_distribution" "frontend" {
   - ⚠️ 裏返すと、**バケットポリシーの設定ミスで本当に拒否されたときも404に見える**。ページが出ないときは、まずバケットポリシーを疑う（コードのコメントに明記）。
 - 独自ドメインは使わず、CloudFrontの既定ドメイン（`*.cloudfront.net`）と証明書を使う。
 
-**ファイル自体はTerraformで管理しない。** アップロードは`frontend/scripts/deploy.sh`がやる（5.6）。
+**ファイル自体はTerraformで管理しない。** アップロードは`frontend/scripts/deploy.sh`がやる（5.7）。
 
 ### 4.7 `batch.tf`（週報バッチ）
 
@@ -966,7 +966,7 @@ aws cloudfront create-invalidation --distribution-id "${distribution_id}" --path
 
 1. **GitHub Actions用ロールの権限が広すぎる**（`infra/oidc.tf`、`AdministratorAccess`）。ADR 0006で一時措置と決めている。#14で絞る。
 2. **DB用セキュリティグループがVPC全体から5432番を受け入れる**（`infra/db.tf`）。Lambda用SGだけに絞れる（#44）。
-3. **DBのパスワードが平文で見える場所がある**：tfstate（シドニーのS3。東京への移行は #25）、SSM、API用Lambdaの環境変数（コンソールで見える）。
+3. **DBのパスワードが平文で見える場所がある**：tfstate（シドニーのS3。東京への移行は #25）と、API用Lambdaの環境変数（コンソールで見える）。SSMは`SecureString`で暗号化しているが、復号の権限がある人は読める。
 4. **CORSで`http://localhost:3000`を本番でも許可している**（`infra/api_gateway.tf`）。ログインを入れるときに見直す（#33）。
 
 **動作・運用**
