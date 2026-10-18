@@ -31,3 +31,6 @@ override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
+
+# Lambda用のビルド成果物（backend/scripts/build_lambda.sh）
+backend/build/
