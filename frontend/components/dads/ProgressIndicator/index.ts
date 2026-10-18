@@ -13,5 +13,7 @@ export {
   ProgressIndicatorStatic,
 } from './ProgressIndicator';
 export type { ProgressIndicatorSize, ProgressIndicatorType } from './types';
-// moodLog での変更: useProgressIndicatorAnnouncer（利用者の操作で始まる読み込み用）は使わないため、
-// ファイルごとコピーせず、export も外した。元のファイルはlint（react-hooks/refs）にも通らない
+// moodLog での変更: useProgressIndicatorAnnouncer は使わないため、ファイルごとコピーせず、export も外した。
+// 公式の説明では、このフックは利用者の操作（ボタンを押すなど）で始まる読み込みに使い、
+// 画面遷移など暗黙的な操作で始まる読み込みでは使わない（https://github.com/digital-go-jp/design-system-example-components-react/blob/68b452e/src/components/ProgressIndicator/ProgressIndicator.stories.tsx#L296）。
+// moodLog のページはページを開いたときに自動で読み込むため、後者にあたる

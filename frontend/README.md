@@ -31,3 +31,4 @@ npm run typecheck
 - `app/`: ページとレイアウト
 - `lib/api/`: backend のAPIを呼ぶクライアント
 - `components/dads/`: DADS公式のReact版スニペットをコピーしたもの（出典と変更点は各ファイルの先頭、ライセンスは `LICENSE`）
+  - 使うコンポーネントのディレクトリごとコピーし、Storybook用の `*.stories.tsx` は除く。使わないと判断したファイルを除いた場合は、そのディレクトリの `index.ts` に理由を書く

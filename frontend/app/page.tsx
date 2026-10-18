@@ -54,7 +54,7 @@ function HealthStatus({ baseUrl }: { baseUrl: string }) {
 
   if (state.kind === "loading") {
     // ページを開いたときに自動で始まる読み込みのため、useProgressIndicatorAnnouncer での通知はしない
-    // （公式スニペットの説明: 利用者の操作で始まる読み込みにだけ使う）
+    // （公式の説明: 暗黙的な操作で始まる読み込みでは通知は不要。https://github.com/digital-go-jp/design-system-example-components-react/blob/68b452e/src/components/ProgressIndicator/ProgressIndicator.stories.tsx#L296）
     return (
       <ProgressIndicator type="stacked" aria-labelledby={labelId}>
         <ProgressIndicatorSpinner size="lg" />
