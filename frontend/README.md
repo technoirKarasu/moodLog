@@ -26,6 +26,11 @@ npm run lint
 npm run typecheck
 ```
 
+## 公開URLへのデプロイ
+
+リポジトリのルートで `frontend/scripts/deploy.sh` を実行する。APIの公開URLを入れてビルドし、S3にアップロードして、CloudFrontのキャッシュを消す。最後に公開URLを表示する。
+前提: `infra/` を apply 済みで、`terraform` と `aws` CLI が使えること。
+
 ## ディレクトリ
 
 - `app/`: ページとレイアウト

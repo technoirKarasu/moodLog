@@ -12,3 +12,18 @@ output "api_endpoint" {
   description = "API Gatewayの公開URL。/health で動作を確認できる"
   value       = aws_apigatewayv2_api.api.api_endpoint
 }
+
+output "frontend_url" {
+  description = "フロントエンドの公開URL（CloudFront）"
+  value       = "https://${aws_cloudfront_distribution.frontend.domain_name}"
+}
+
+output "frontend_bucket_name" {
+  description = "フロントエンドの静的ファイルを置くS3バケット。frontend/scripts/deploy.sh がアップロードする"
+  value       = aws_s3_bucket.frontend.bucket
+}
+
+output "frontend_distribution_id" {
+  description = "CloudFrontディストリビューションのID。frontend/scripts/deploy.sh がキャッシュを消すときに使う"
+  value       = aws_cloudfront_distribution.frontend.id
+}

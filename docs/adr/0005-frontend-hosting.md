@@ -14,4 +14,9 @@ Vercel（AWSの運用を自分で持つという方針に反するため見送�
 
 ## 結果
 
-（未記入）
+`infra/frontend_hosting.tf` で構築した（Issue #12）。
+
+- S3バケットは非公開（公開アクセスブロック4項目）。CloudFrontの Origin Access Control 経由でだけ読める。バケットポリシーは、このディストリビューションからの `s3:GetObject` だけを許可する
+- CloudFront: 既定のドメイン（`*.cloudfront.net`）と証明書、HTTPはHTTPSにリダイレクト、キャッシュはマネージドポリシー `CachingOptimized`、`PriceClass_200`（日本のエッジを含む）。存在しないパスは `404.html` を404で返す（OACでは存在しないオブジェクトにS3が403を返すため、403も404にする）
+- アップロード: `frontend/scripts/deploy.sh` がAPIの公開URLを入れてビルドし、`aws s3 sync` でアップロードして、`/*` を無効化する。Terraformではファイルを管理しない
+- APIはCORSでCloudFrontのオリジンを許可して、ブラウザから呼ぶ
