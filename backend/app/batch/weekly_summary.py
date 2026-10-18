@@ -10,7 +10,8 @@ import logging
 from typing import Any
 
 logger = logging.getLogger(__name__)
-# LambdaのPythonランタイムは、既定ではルートロガーがWARNINGのため、INFOを出すにはここで設定する
+# LambdaのPythonランタイムは、既定ではルートロガーがWARNINGのため、
+# INFOを出すにはここで設定する
 logger.setLevel(logging.INFO)
 
 
