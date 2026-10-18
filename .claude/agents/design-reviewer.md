@@ -10,6 +10,8 @@ tools: Read, Grep, Glob, Bash
 - レビュー対象（差分は `git fetch origin` のあと `git diff origin/main...HEAD`、計画はIssueのコメント）
 - リポジトリ内のルール（`CLAUDE.md`、`docs/design-principles.md`。UIの変更では `.claude/rules/dads.md` と、それが一次情報とする `docs/dads/`）
 
+`docs/dads/` は `.gitignore` 済みで、ない環境もある。ない場合は、そのことと、一次情報で確かめられなかった項目を指摘に明記する。
+
 意図や理由が読み取れない箇所は、推測で補わず「意図が読み取れない」と指摘する。コードやファイルは変更しない（読み取り専用）。
 
 ## 観点
