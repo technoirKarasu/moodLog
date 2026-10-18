@@ -23,16 +23,16 @@
 | Storybook（React） | https://design.digital.go.jp/dads/react/ |
 | Tailwindテーマプラグイン | https://github.com/digital-go-jp/tailwind-theme-plugin |
 | デザイントークン（npm） | `@digital-go-jp/design-tokens` |
- - ローカルの公式Markdown: docs/dads/（`.gitignore` 済み。リポジトリには入れない）
-   - 無い場合は、上の表の「サイト全体のMarkdown一式」のzipをダウンロードし、`docs/dads/` に展開する
- - コンポーネントを実装する前に、該当ページ（例: docs/dads/components/button/index.md）を必ず読む
+
+- ローカルの公式Markdown: docs/dads/（`.gitignore` 済み。リポジトリには入れない）
+  - 無い場合は、上の表の「サイト全体のMarkdown一式」のzipをダウンロードし、`docs/dads/` に展開する
+- コンポーネントを実装する前に、該当ページ（例: docs/dads/components/button/index.md）を必ず読む
 
 ## 2. 実装方針
 
 - コンポーネントは、公式のReact版コードスニペットを起点にする。同等のものをゼロから自作しない。
-- スタイルはTailwind CSS + `@digital-go-jp/tailwind-theme-plugin` を使う。
-  - Tailwind v4: CSSに `@import 'tailwindcss';` と `@import '@digital-go-jp/tailwind-theme-plugin/v4';`
-  - Tailwind v3: `tailwind.config.js` の `plugins` に `require('@digital-go-jp/tailwind-theme-plugin')`
+- スタイルはTailwind CSS v4 + `@digital-go-jp/tailwind-theme-plugin` を使う（ADR 0008）。
+  - CSSに `@import 'tailwindcss';` と `@import '@digital-go-jp/tailwind-theme-plugin/v4';`
   - プラグインのバージョンはFigmaデザインデータのバージョンと対応関係がある。導入時にREADMEの対応表と最新のnpmバージョンを確認する。
 - 色・文字・余白はプラグインが提供するトークンを使う。任意値（`text-[#123456]`、`p-[13px]` など）は原則禁止。
 
