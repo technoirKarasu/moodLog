@@ -30,7 +30,6 @@ paths:
 | デザイントークン（npm） | `@digital-go-jp/design-tokens` |
 
 - ローカルの公式Markdown: docs/dads/（`.gitignore` 済み。リポジトリには入れない）
-  - 無い場合は、上の表の「サイト全体のMarkdown一式」のzipをダウンロードし、`docs/dads/` に展開する
 - コンポーネントを実装する前に、該当ページ（例: docs/dads/components/button/index.md）を必ず読む
 
 ## 2. 実装方針
