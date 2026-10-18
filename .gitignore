@@ -35,5 +35,5 @@ override.tf.json
 # Lambda用のビルド成果物（backend/scripts/build_lambda.sh）
 backend/build/
 
-# デジタル庁デザインシステムの公式Markdown一式（ローカル参照用。取得方法は .claude/rules/dads.md）
+# デジタル庁デザインシステムの公式Markdown一式（ローカル参照用）
 docs/dads/
