@@ -18,6 +18,7 @@ RDSで構築した（Issue #9）。
 
 - インスタンスクラス: `db.t4g.micro`、ストレージ: gp3 20GB、Single-AZ
 - ネットワーク: 専用VPCを新たに作らず、デフォルトVPCを使用（個人開発の初期段階でネットワーク構成を増やさないための判断）
+  - その後、東京リージョンにデフォルトVPCがないことが分かり、TerraformでVPCを作る形に変えた（ADR 0007、Issue #36）
 - 接続情報（ユーザー名・パスワード・接続文字列）はコードに書かず、SSM Parameter Store（SecureString, `/moodlog/database_url`）にのみ保存
 
 月額見込み（概算、東京リージョン・Single-AZ・オンデマンド料金ベース。正確な金額はAWS Pricing Calculatorで要確認）:
