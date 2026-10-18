@@ -39,3 +39,16 @@ variable "budget_notification_email" {
     error_message = "budget_notification_email にはメールアドレスを指定してください。"
   }
 }
+
+# 週報生成バッチの起動スケジュール（EventBridge Schedulerの式、Asia/Tokyo）。
+# 動作を確かめるときだけ -var 'weekly_summary_schedule=rate(5 minutes)' で上書きする（infra/README.md）
+variable "weekly_summary_schedule" {
+  description = "週報生成バッチの起動スケジュール"
+  type        = string
+  default     = "cron(0 18 ? * FRI *)"
+
+  validation {
+    condition     = can(regex("^(cron|rate|at)\\(.+\\)$", var.weekly_summary_schedule))
+    error_message = "weekly_summary_schedule には cron(...)、rate(...)、at(...) のいずれかを指定してください。"
+  }
+}
