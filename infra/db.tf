@@ -1,36 +1,26 @@
 # PostgreSQL本体（RDS）と、接続情報の管理（SSM Parameter Store）。
 # Issue #9: DBとシークレット管理をTerraformで構築する
 #
-# ネットワークは専用VPCを新たに作らず、AWSアカウント標準のデフォルトVPCを使う。
-# 個人開発の初期段階でネットワーク構成を複雑にしないための判断（docs/adr/0002-database.md参照）。
-
-data "aws_vpc" "default" {
-  default = true
-}
-
-data "aws_subnets" "default" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.default.id]
-  }
-}
+# ネットワークは network.tf で作るVPCのプライベートサブネットに置く（docs/adr/0007-vpc.md参照）。
 
 resource "aws_db_subnet_group" "moodlog" {
   name       = "moodlog-db"
-  subnet_ids = data.aws_subnets.default.ids
+  subnet_ids = [aws_subnet.private_a.id, aws_subnet.private_c.id]
 }
 
 resource "aws_security_group" "db" {
   name        = "moodlog-db"
   description = "RDS(PostgreSQL)への接続許可範囲"
-  vpc_id      = data.aws_vpc.default.id
+  vpc_id      = aws_vpc.main.id
 
   ingress {
-    description = "デフォルトVPC内からのPostgreSQL接続を許可。Lambdaも同VPCに配置する想定（Issue #10）"
+    # VPC内からのPostgreSQL接続を許可。Lambdaも同じVPCに置く想定（Issue #10）
+    # ルールのdescriptionに使える文字はAWS側で英数字と一部の記号に限られるため、英語で書く
+    description = "PostgreSQL from within the VPC"
     from_port   = 5432
     to_port     = 5432
     protocol    = "tcp"
-    cidr_blocks = [data.aws_vpc.default.cidr_block]
+    cidr_blocks = [aws_vpc.main.cidr_block]
   }
 
   egress {
