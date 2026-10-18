@@ -79,7 +79,8 @@ resource "aws_lambda_function" "api" {
     }
   }
 
-  # 関数が先に呼ばれるとロググループが自動作成され、上のロググループの作成が失敗するため
+  # ロググループ: 関数が先に呼ばれるとロググループが自動作成され、上のロググループの作成が失敗するため
+  # ポリシーのアタッチ: VPC内に関数を作るとき、ENIを作る権限が先に必要なため
   depends_on = [
     aws_cloudwatch_log_group.lambda,
     aws_iam_role_policy_attachment.lambda_vpc_access,
