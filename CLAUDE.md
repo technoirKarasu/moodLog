@@ -12,7 +12,6 @@
 - 非同期: EventBridge（金曜の週報生成をトリガー）→ SQS → Lambda。失敗分は DLQ
 - IaC: Terraform（state は S3）
 - CI/CD: GitHub Actions。OIDC で AWS 認証。PR で lint + API テスト、main マージで自動デプロイ
-- テストは API 層のみ
 
 ## 方針
 
@@ -24,7 +23,6 @@
 
 - 作業前に対象の Issue 番号を確認する。Issue がなければ先に作る
 - ブランチ名は `feat/12-short-name` の形式（Issue 番号を含める）
-- PR の説明には背景と変更内容を書き、末尾に `Closes #12` を付ける
 - PR のマージは人間が行う。Claude Code はマージしない
 - main への直接 push は禁止
 - 実装中に気づいた別の問題はその場で直さず、Issue を立てて後回しにする
@@ -41,6 +39,7 @@
 - 日本語で応答する
 - 提案は理由を1〜2行添えて簡潔に。代替案を並べすぎない
 - 分からないことは推測で進めず質問する
+
 ## 進め方
 
 ### 変更の大きさで進め方を変える
@@ -66,19 +65,19 @@
 - テストや lint の設定を緩めて通さない。テストを変更・削除するときは、理由をPRに書く
 - テストの主対象はバックエンドのAPI層。フロントエンドは lint と型チェックで判定する
 
-機械判定のコマンド（リポジトリの実態に合わせて修正すること）:
+機械判定のコマンド:
 
-| 対象 | コマンド |
-| --- | --- |
-| Backend | `pytest`、`ruff check .` |
-| Frontend | `npm run lint`、`npm run typecheck` |
-| Terraform | `terraform fmt -check`、`terraform validate`（`plan` の結果はPRに載せる） |
+| 対象 | 実行場所 | コマンド |
+| --- | --- | --- |
+| Backend | `backend/` | `pytest`、`ruff check .`（ruffは未導入。#28 で導入） |
+| Frontend | `frontend/` | `npm run lint`、`npm run typecheck`（未導入。Next.jsのセットアップ時に用意する） |
+| Terraform | `infra/` | `terraform fmt -check`、`terraform validate`（`plan` の結果はPRに載せる） |
 
 ### 矛盾と既存コード
 
 - ルールやドキュメントの間に矛盾を見つけたら、どちらかを選んで進めず、ユーザーに報告して止まる
 - ルールやドキュメントを追加・変更するときは、同じ内容を複数箇所に書かない。設計原則の正は `docs/design-principles.md` のみ
-- 新規コードは、既存の同種コードの書き方に合わせる。既存コードに設計原則違反を見つけても、勝手に直さず報告する（別Issueにする）
+- 新規コードは、既存の同種コードの書き方に合わせる。既存コードに設計原則違反を見つけたときも、「作業の流れ」のとおりその場で直さず別Issueにする
 
 ### PR
 
