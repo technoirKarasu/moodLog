@@ -170,7 +170,7 @@ def test_health_returns_200_when_db_is_reachable():
 
 ```hcl
 terraform {
-  required_version = ">= 1.9"
+  required_version = ">= 1.10"
   required_providers {
     aws    = { source = "hashicorp/aws", version = "~> 5.0" }
     random = { source = "hashicorp/random", version = "~> 3.6" }
