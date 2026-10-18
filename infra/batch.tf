@@ -92,6 +92,7 @@ resource "aws_lambda_function" "weekly_summary" {
   source_code_hash = filebase64sha256(local.lambda_zip_path)
 
   # ロググループ: 関数が先に呼ばれるとロググループが自動作成され、上のロググループの作成が失敗するため
+  # ログの権限: 最初に呼ばれたときから、ログを書き込めるようにするため
   depends_on = [
     aws_cloudwatch_log_group.weekly_summary,
     aws_iam_role_policy_attachment.weekly_summary_logs,

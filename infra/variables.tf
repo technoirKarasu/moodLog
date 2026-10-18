@@ -46,4 +46,9 @@ variable "weekly_summary_schedule" {
   description = "週報生成バッチの起動スケジュール"
   type        = string
   default     = "cron(0 18 ? * FRI *)"
+
+  validation {
+    condition     = can(regex("^(cron|rate|at)\\(.+\\)$", var.weekly_summary_schedule))
+    error_message = "weekly_summary_schedule には cron(...)、rate(...)、at(...) のいずれかを指定してください。"
+  }
 }
