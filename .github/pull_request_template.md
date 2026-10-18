@@ -22,6 +22,8 @@ Closes #
 - 検討して採用しなかった案と理由:
 - 適用した原則（docs/design-principles.md）:
 - あえて適用しなかった原則と理由:
+- UIの変更のとき: DADSから外した箇所と理由（.claude/rules/dads.md）:
+- UIの変更のとき: DADSの自己チェックの結果（.claude/rules/dads.md の9節）:
 
 ## 機械判定の結果
 
