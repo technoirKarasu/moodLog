@@ -502,7 +502,7 @@ resource "aws_cloudwatch_log_group" "lambda" {
 ```
 - IAMロール：Lambda自身が使う権限。VPC内にネットワークの口（ENI）を作る権限と、CloudWatch Logsに書く権限を持つマネージドポリシー。
 - ロググループ：Lambdaのログの置き場所。自動作成に任せると保持期間が「無期限」になり、ログ代がかかり続けるので、先に作って14日にする。
-- `depends_on`（関数の側にある）：「これを先に作ってからLambdaを作れ」という順番の指定。ロググループを先に作らないと、Lambdaが先に動いてロググループを自動作成し、Terraformの作成がぶつかって失敗する。
+- `depends_on`（関数の側にある）：「これを先に作ってからLambdaを作れ」という順番の指定。ロググループを先に作らないと、Lambdaが先に動いてロググループを自動作成し、Terraformの作成がぶつかって失敗する。IAMポリシーのアタッチも先に行う。VPC内にLambdaを作るとき、ENIを作る権限が先に要るため。
 
 ### 4.5 `api_gateway.tf`（公開URLの入口）
 
@@ -856,7 +856,7 @@ useEffect(() => {
 
 - DADSの公式React版スニペット（`design-system-example-components-react` v2.7.0）から、使う4つ（Heading、Dl、NotificationBanner、ProgressIndicator）をディレクトリごとコピーしている。ゼロから自作しない方針（`.claude/rules/dads.md`）。
 - 各ファイルの先頭に出典を書き、MIT Licenseの全文を`LICENSE`に置いている。
-- このリポジトリのlintに通すために変えた箇所には、その場所に`// moodLog での変更: ...`とコメントがある（例：`forwardRef`のコンポーネントに`displayName`を付けた）。
+- このリポジトリのlintに通すため、または使わない部分を除くために変えた箇所には、その場所に`// moodLog での変更: ...`とコメントがある（例：`forwardRef`のコンポーネントに`displayName`を付けた）。
 - `globals.css`：
 
   ```css
