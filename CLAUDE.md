@@ -65,13 +65,13 @@
 - テストや lint の設定を緩めて通さない。テストを変更・削除するときは、理由をPRに書く
 - テストの主対象はバックエンドのAPI層。フロントエンドは lint と型チェックで判定する
 
-機械判定のコマンド:
+機械判定のコマンド（リポジトリのルートで実行する）:
 
-| 対象 | 実行場所 | コマンド |
-| --- | --- | --- |
-| Backend | `backend/` | `pytest`、`ruff check .`（ruffは未導入。#28 で導入） |
-| Frontend | `frontend/` | `npm run lint`、`npm run typecheck`（未導入。Next.jsのセットアップ時に用意する） |
-| Terraform | `infra/` | `terraform fmt -check`、`terraform validate`（`plan` の結果はPRに載せる） |
+| 対象 | コマンド |
+| --- | --- |
+| Backend | `backend/.venv/bin/pytest backend`、`backend/.venv/bin/ruff check backend`（ruffは未導入。#28 で導入） |
+| Frontend | `npm --prefix frontend run lint`、`npm --prefix frontend run typecheck`（未導入。Next.jsのセットアップ時に用意する） |
+| Terraform | `terraform -chdir=infra fmt -check`、`terraform -chdir=infra validate`（`terraform -chdir=infra plan` の結果はPRに載せる） |
 
 ### 矛盾と既存コード
 
