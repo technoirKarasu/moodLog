@@ -69,7 +69,7 @@
 
 | 対象 | コマンド |
 | --- | --- |
-| Backend | `backend/.venv/bin/pytest backend`、`backend/.venv/bin/ruff check backend`（ruffは未導入。#28 で導入） |
+| Backend | `backend/.venv/bin/pytest backend`、`backend/.venv/bin/ruff check backend` |
 | Frontend | `npm --prefix frontend run lint`、`npm --prefix frontend run typecheck` |
 | Terraform | `terraform -chdir=infra fmt -check`、`terraform -chdir=infra validate`（`terraform -chdir=infra plan` の結果はPRに載せる） |
 

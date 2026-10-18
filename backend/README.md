@@ -33,8 +33,9 @@ docker compose up -d
 
 `GET /health` にアクセスするとDB接続の成否を含めて返す（成功時200、失敗時503）。
 
-## テスト
+## テスト・lint
 
 ```sh
 .venv/bin/pytest
+.venv/bin/ruff check .   # 設定は ruff.toml
 ```

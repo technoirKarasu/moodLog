@@ -1,0 +1,16 @@
+# ruffの設定（Issue #28）。実行はリポジトリのルートで `backend/.venv/bin/ruff check backend`（CLAUDE.md）
+#
+# ルールは select で明示する。既定のルールは ruff のバージョンで変わるため（0.17 では BLE や PIE なども入っていた）
+
+target-version = "py313"
+
+# alembic revision が自動生成するファイル。backend/build/ は .gitignore に入っており、ruff は既定で .gitignore に従う
+extend-exclude = ["alembic/versions"]
+
+[lint]
+# E: pycodestyle のエラー、F: pyflakes、I: import の並び順、B: bugbear（バグになりやすい書き方）、UP: pyupgrade
+select = ["E", "F", "I", "B", "UP"]
+
+[lint.isort]
+# backend/alembic/ ディレクトリがあるため、そのままでは外部ライブラリの alembic を自作コードとして扱ってしまう
+known-third-party = ["alembic"]
