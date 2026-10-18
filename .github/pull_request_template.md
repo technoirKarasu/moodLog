@@ -22,7 +22,7 @@ Closes #
 - 検討して採用しなかった案と理由:
 - 適用した原則（docs/design-principles.md）:
 - あえて適用しなかった原則と理由:
-- frontend/ の見た目・UIを変えたとき（.claude/rules/dads.md）:
+- frontend/ の見た目・UIを変えたとき（.claude/rules/dads.md。変えていなければ「該当なし」）:
   - 適用したDADSのコンポーネント・トークン:
   - DADSから外した箇所と理由:
   - 自己チェック（9節）の結果:
