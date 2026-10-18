@@ -1,0 +1,10 @@
+@import "tailwindcss";
+@import "@digital-go-jp/tailwind-theme-plugin/v4";
+
+@theme {
+  /*
+   * DADSのブレークポイント（768px）。公式スニペット（NotificationBanner）が使う `desktop:` の定義は
+   * テーマプラグインのv3版（screens.desktop: "48em"）にしかなく、v4版にはないため、同じ値で補う
+   */
+  --breakpoint-desktop: 48em;
+}

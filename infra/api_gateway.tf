@@ -6,6 +6,13 @@
 resource "aws_apigatewayv2_api" "api" {
   name          = "moodlog-api"
   protocol_type = "HTTP"
+
+  # ブラウザ（frontend）から呼べるようにする。事前確認（OPTIONS）もAPI Gatewayが返し、Lambdaは呼ばれない。
+  # http://localhost:3000 はローカル開発用（Issue #11）。CloudFrontのオリジンを足すときに、残すかどうかを決める（Issue #12）
+  cors_configuration {
+    allow_origins = ["http://localhost:3000"]
+    allow_methods = ["GET"]
+  }
 }
 
 resource "aws_apigatewayv2_integration" "lambda" {
