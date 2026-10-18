@@ -6,7 +6,7 @@
 
 モノレポ。`frontend/` `backend/` `infra/` の3つ。
 
-- frontend: Next.js (TypeScript)、静的エクスポート、S3 + CloudFront で配信
+- frontend: Next.js (TypeScript)、静的エクスポート、S3 + CloudFront で配信。UIはデジタル庁デザインシステム（DADS）に準拠し、スタイルは Tailwind CSS ＋ DADSのテーマプラグイン（ADR 0008）
 - backend: FastAPI (Python)、Mangum で Lambda + API Gateway、マイグレーションは Alembic
 - DB: PostgreSQL（RDS。コスト次第で Neon に切り替える可能性あり）
 - 非同期: EventBridge（金曜の週報生成をトリガー）→ SQS → Lambda。失敗分は DLQ
@@ -76,7 +76,7 @@
 ### 矛盾と既存コード
 
 - ルールやドキュメントの間に矛盾を見つけたら、どちらかを選んで進めず、ユーザーに報告して止まる
-- ルールやドキュメントを追加・変更するときは、同じ内容を複数箇所に書かない。設計原則の正は `docs/design-principles.md` のみ
+- ルールやドキュメントを追加・変更するときは、同じ内容を複数箇所に書かない。コードの設計原則の正は `docs/design-principles.md` のみ、UIのデザイン（DADS準拠）の正は `.claude/rules/dads.md` のみ
 - 新規コードは、既存の同種コードの書き方に合わせる。既存コードに設計原則違反を見つけたときも、「作業の流れ」のとおりその場で直さず別Issueにする
 
 ### PR
