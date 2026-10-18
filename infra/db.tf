@@ -8,9 +8,11 @@ resource "aws_db_subnet_group" "moodlog" {
   subnet_ids = [aws_subnet.private_a.id, aws_subnet.private_c.id]
 }
 
+# RDS(PostgreSQL)への接続許可範囲
+# セキュリティグループのdescriptionに使える文字はAWS側で英数字と一部の記号に限られるため、英語で書く
 resource "aws_security_group" "db" {
   name        = "moodlog-db"
-  description = "RDS(PostgreSQL)への接続許可範囲"
+  description = "Allowed access to RDS (PostgreSQL)"
   vpc_id      = aws_vpc.main.id
 
   ingress {
