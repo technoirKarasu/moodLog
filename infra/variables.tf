@@ -27,3 +27,15 @@ variable "db_instance_class" {
   type        = string
   default     = "db.t4g.micro"
 }
+
+# 公開リポジトリにアドレスを載せないため、デフォルト値を持たせず infra/terraform.tfvars（コミットしない）で渡す
+variable "budget_notification_email" {
+  description = "AWS Budgetsの通知を送るメールアドレス"
+  type        = string
+  sensitive   = true
+
+  validation {
+    condition     = can(regex("^[^@\\s]+@[^@\\s]+$", var.budget_notification_email))
+    error_message = "budget_notification_email にはメールアドレスを指定してください。"
+  }
+}
