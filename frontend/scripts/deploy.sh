@@ -29,4 +29,4 @@ aws cloudfront create-invalidation \
   --query "Invalidation.Id" \
   --output text
 
-echo "$(tf_output frontend_url)"
+echo "公開URL: $(tf_output frontend_url)"

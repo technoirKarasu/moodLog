@@ -53,7 +53,8 @@ resource "aws_cloudfront_distribution" "frontend" {
     compress               = true
   }
 
-  # OACでは、存在しないオブジェクトにS3が403を返すため、404と合わせて 404.html（Next.jsが出力する）を404で返す
+  # OACでは、存在しないオブジェクトにS3が403を返すため、404と合わせて 404.html（Next.jsが出力する）を404で返す。
+  # 権限の設定ミスで拒否された場合も404に見えるため、ページが表示されないときはバケットポリシーを先に確かめる
   custom_error_response {
     error_code         = 403
     response_code      = 404
