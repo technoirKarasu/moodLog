@@ -20,7 +20,7 @@ moodLog/
 └── frontend/     Next.js。まだREADMEのみで未実装
 ```
 
-今のところ実際に動いているのは「ローカルPC上でFastAPI + Dockerの Postgres」だけです。AWS向けのTerraformコード（OIDC・RDS・SSM）は書いてありますが、まだ `terraform apply` していません。AWS上にあるのは、Terraformの管理外で用意したtfstate用のS3バケット（4.1）だけです。
+今のところ実際に動いているのは「ローカルPC上でFastAPI + Dockerの Postgres」だけです。AWS上にあるのは、GitHub Actions用のOIDCプロバイダとIAMロール（4.2、apply済み）と、Terraformの管理外で用意したtfstate用のS3バケット（4.1）です。RDSとSSM（4.3）はコードだけで、まだ `terraform apply` していません。
 
 ### データの流れ（将来像）
 
@@ -349,10 +349,11 @@ resource "aws_ssm_parameter" "database_url" {
 
 | 状態 | Issue/内容 |
 |---|---|
-| 完了 | ADR記録（0001〜0006）、monorepo構成、Terraform実行基盤(OIDC)、FastAPI最小構成（`/health`のみ）、#9 DB・シークレット管理（コードのみ。未apply） |
-| 未着手 | #6 AWSアカウント初期設定 / #10 Lambda+API Gateway / #11 Next.js最小ページ / #12 S3+CloudFront / #13 EventBridge定期ジョブ / #14 CI/CD / #15 ブランチ保護 / #16 運用確認・ADR記載 / #25 tfstateバケットの東京移行 / #28 ruff導入 |
+| 完了 | ADR記録（0001〜0006）、monorepo構成、Terraform実行基盤(OIDC、apply済み)、FastAPI最小構成（`/health`のみ）、#9 DB・シークレット管理（コードのみ。未apply） |
+| 一部完了 | #6 AWSアカウント初期設定（MFA・作業用ユーザー・リージョン方針は済み。AWS Budgetsの設定が残り） |
+| 未着手 | #10 Lambda+API Gateway / #11 Next.js最小ページ / #12 S3+CloudFront / #13 EventBridge定期ジョブ / #14 CI/CD / #15 ブランチ保護 / #16 運用確認・ADR記載 / #25 tfstateバケットの東京移行 / #28 ruff導入 |
 
-**今はAWS上に何もデプロイされていない。** Terraformのコードはあるが`terraform apply`はまだ（AWS上にあるのはtfstate用のS3バケットだけ）。ローカルのDocker+FastAPIだけが動く状態。
+**AWS上にあるのは、OIDCプロバイダ・IAMロールとtfstate用のS3バケットだけ。** RDSとSSMは`terraform apply`がまだ。アプリとして動くのは、ローカルのDocker+FastAPIだけ。
 
 ---
 
@@ -370,4 +371,4 @@ resource "aws_ssm_parameter" "database_url" {
 
 ## 8. 次に手を動かすなら
 
-依存関係の順番としては **#6（AWSアカウント初期設定）→ `terraform apply`でOIDC・RDS・SSMを作る → #10（Lambda+API Gateway）** が自然。#10まで終われば、今の`/health`がAWS上でRDSにつながるかを確かめられる。
+依存関係の順番としては **#6の残り（AWS Budgets）→ `terraform apply`でRDS・SSMを作る → #10（Lambda+API Gateway）** が自然。#10まで終われば、今の`/health`がAWS上でRDSにつながるかを確かめられる。
