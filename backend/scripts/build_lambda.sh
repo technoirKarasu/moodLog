@@ -26,6 +26,10 @@ python3 -m pip install \
   --only-binary=:all:
 
 cp -R "${backend_dir}/app" "${package_dir}/app"
+# マイグレーション用のLambda（app/migrate.py、Issue #58）が使う。
+# ライブラリのalembicがルートの alembic/ に入るため、マイグレーションは migrations/ に置いている
+cp -R "${backend_dir}/migrations" "${package_dir}/migrations"
+cp "${backend_dir}/alembic.ini" "${package_dir}/alembic.ini"
 find "${package_dir}" -name "__pycache__" -type d -prune -exec rm -rf {} +
 
 (cd "${package_dir}" && zip -q -r "${build_dir}/lambda.zip" .)
