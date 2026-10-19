@@ -43,6 +43,9 @@ type EntriesState =
   | { kind: "success"; entries: Entry[] }
   | { kind: "error"; httpStatus: number | undefined };
 
+// トークンの期限切れ（API Gatewayが401を返す）のとき、ログインし直してもらう
+const SESSION_EXPIRED_MESSAGE = "ログインの有効期限が切れました。ログアウトしてから、ログインし直してください。";
+
 // 登録に失敗したときのメッセージ。入力は画面で先に確かめているが、backend の検証とずれたときに 422 が返る
 const submitErrorMessage = (httpStatus: number | undefined): string => {
   if (httpStatus === 401) return SESSION_EXPIRED_MESSAGE;
@@ -50,8 +53,6 @@ const submitErrorMessage = (httpStatus: number | undefined): string => {
   return "記録できませんでした。時間をおいてもう一度お試しください。";
 };
 
-// トークンの期限切れ（API Gatewayが401を返す）のとき、ログインし直してもらう
-const SESSION_EXPIRED_MESSAGE = "ログインの有効期限が切れました。ログアウトしてから、ログインし直してください。";
 
 // ビルド時に埋め込まれる（静的エクスポートのため、実行時には変えられない）
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
