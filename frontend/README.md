@@ -5,14 +5,16 @@ UIはデジタル庁デザインシステム（DADS）に準拠する（`.claude
 
 ## 準備
 
-`.env.example` を `.env.local` にコピーし、APIの公開URLを書く（`.env.local` はコミットしない）。
+`.env.example` を `.env.local` にコピーし、APIの公開URLとログイン（Cognito）の接続先を書く（`.env.local` はコミットしない）。
 
 ```sh
 cp .env.example .env.local
-# NEXT_PUBLIC_API_BASE_URL に `terraform -chdir=infra output -raw api_endpoint` の値を書く
+# 各変数に、.env.example のコメントにある terraform output の値を書く
 ```
 
-`NEXT_PUBLIC_API_BASE_URL` はビルド時に埋め込まれる。値を変えたら、開発サーバーを再起動するかビルドし直す。
+`NEXT_PUBLIC_*` はビルド時に埋め込まれる。値を変えたら、開発サーバーを再起動するかビルドし直す。
+
+ローカル（`http://localhost:3000`）からも本番のCognitoでログインできる。ただし、ログインが必要なAPI（`/me` など）は、トークンの検証を API Gateway が行うため、ローカルの uvicorn では401になる。
 
 ## 起動・ビルド
 
@@ -28,12 +30,13 @@ npm run typecheck
 
 ## 公開URLへのデプロイ
 
-リポジトリのルートで `frontend/scripts/deploy.sh` を実行する。APIの公開URLを入れてビルドし、S3にアップロードして、CloudFrontのキャッシュを消す。最後に公開URLを表示する。
+リポジトリのルートで `frontend/scripts/deploy.sh` を実行する。APIの公開URLとログインの接続先を入れてビルドし、S3にアップロードして、CloudFrontのキャッシュを消す。最後に公開URLを表示する。
 前提: `infra/` を apply 済みで、`terraform` と `aws` CLI が使えること。
 
 ## ディレクトリ
 
 - `app/`: ページとレイアウト
 - `lib/api/`: backend のAPIを呼ぶクライアント
+- `lib/auth.ts`: Cognitoでのログイン・ログアウト（ADR 0009、ADR 0010）
 - `components/dads/`: DADS公式のReact版スニペットをコピーしたもの（出典と変更点は各ファイルの先頭、ライセンスは `LICENSE`）
   - 使うコンポーネントのディレクトリごとコピーし、Storybook用の `*.stories.tsx` は除く。使わないと判断したファイルを除いた場合は、そのディレクトリの `index.ts` に理由を書く

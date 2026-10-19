@@ -27,3 +27,18 @@ output "frontend_distribution_id" {
   description = "CloudFrontディストリビューションのID。frontend/scripts/deploy.sh がキャッシュを消すときに使う"
   value       = aws_cloudfront_distribution.frontend.id
 }
+
+output "cognito_issuer" {
+  description = "CognitoのトークンのIssuer。画面（oidc-client-ts の authority）とJWTオーソライザーが使う"
+  value       = "https://${aws_cognito_user_pool.main.endpoint}"
+}
+
+output "cognito_domain_url" {
+  description = "マネージドログインのURL。画面がログアウトに使う。GoogleのOAuthクライアントのリダイレクトURIは、これに /oauth2/idpresponse を付けたもの"
+  value       = "https://${aws_cognito_user_pool_domain.main.domain}.auth.ap-northeast-1.amazoncognito.com"
+}
+
+output "cognito_client_id" {
+  description = "画面用のCognitoアプリクライアントID"
+  value       = aws_cognito_user_pool_client.frontend.id
+}

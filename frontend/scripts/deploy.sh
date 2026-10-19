@@ -14,11 +14,19 @@ tf_output() {
 }
 
 api_endpoint="$(tf_output api_endpoint)"
+cognito_issuer="$(tf_output cognito_issuer)"
+cognito_domain_url="$(tf_output cognito_domain_url)"
+cognito_client_id="$(tf_output cognito_client_id)"
 bucket="$(tf_output frontend_bucket_name)"
 distribution_id="$(tf_output frontend_distribution_id)"
 
-# NEXT_PUBLIC_API_BASE_URL はビルド時に埋め込まれる（.env.local より環境変数が優先される）
-(cd "${frontend_dir}" && NEXT_PUBLIC_API_BASE_URL="${api_endpoint}" npm run build)
+# NEXT_PUBLIC_* はビルド時に埋め込まれる（.env.local より環境変数が優先される）
+(cd "${frontend_dir}" &&
+  NEXT_PUBLIC_API_BASE_URL="${api_endpoint}" \
+  NEXT_PUBLIC_COGNITO_ISSUER="${cognito_issuer}" \
+  NEXT_PUBLIC_COGNITO_DOMAIN_URL="${cognito_domain_url}" \
+  NEXT_PUBLIC_COGNITO_CLIENT_ID="${cognito_client_id}" \
+  npm run build)
 
 # out/ にないファイルはS3からも消す
 aws s3 sync "${frontend_dir}/out/" "s3://${bucket}/" --delete --only-show-errors
