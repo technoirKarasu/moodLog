@@ -9,7 +9,8 @@ resource "aws_apigatewayv2_api" "api" {
   name          = "moodlog-api"
   protocol_type = "HTTP"
 
-  # ブラウザ（frontend）から呼べるようにする。事前確認（OPTIONS）もAPI Gatewayが返し、Lambdaは呼ばれない。
+  # ブラウザ（frontend）から呼べるようにする。事前確認（OPTIONS）は preflight ルートからLambdaに届き、
+  # FastAPIが204を返す。CORSのヘッダーはAPI Gatewayが付ける。
   # 許可するオリジン:
   # - CloudFrontの公開URL（Issue #12）
   # - http://localhost:3000: ローカル開発用（Issue #11）。本番のAPIにも効くが、トークンはクッキーではなく

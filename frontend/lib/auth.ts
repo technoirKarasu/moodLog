@@ -60,15 +60,19 @@ export const signOut = async (config: AuthConfig): Promise<void> => {
 let callbackPromise: Promise<void> | undefined;
 
 // マネージドログインから戻ってきたとき（URLに code と state がある）だけ、認可コードをトークンに替える。
-// 替えたあとは、URLから code と state を消す
+// 替えたあとは、成功しても失敗しても、URLから code と state を消す
 const handleCallbackIfPresent = (manager: UserManager): Promise<void> => {
   const params = new URLSearchParams(window.location.search);
   if (!params.has("code") || !params.has("state")) {
     return Promise.resolve();
   }
-  callbackPromise ??= manager.signinRedirectCallback().then(() => {
-    window.history.replaceState(null, "", "/");
-  });
+  // 失敗したときも消す。残すと、再読み込みのたびに同じ認可コードで失敗し続ける
+  callbackPromise ??= manager
+    .signinRedirectCallback()
+    .then(() => undefined)
+    .finally(() => {
+      window.history.replaceState(null, "", "/");
+    });
   return callbackPromise;
 };
 
