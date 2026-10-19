@@ -14,7 +14,6 @@ import {
   ProgressIndicator,
   ProgressIndicatorSpinner,
 } from "@/components/dads/ProgressIndicator";
-import { fetchHealth, HealthFetchError, type HealthResult } from "@/lib/api/health";
 import { EntryForm, type SubmitResult } from "@/components/EntryForm";
 import { EntryList } from "@/components/EntryList";
 import {
@@ -24,7 +23,9 @@ import {
   EntriesFetchError,
   fetchEntries,
 } from "@/lib/api/entries";
+import { fetchHealth, HealthFetchError, type HealthResult } from "@/lib/api/health";
 import { type AuthConfig, authConfig, loadUser, signIn, signOut } from "@/lib/auth";
+import { NOTE_MAX_LENGTH } from "@/lib/mood";
 
 type State =
   | { kind: "loading" }
@@ -41,6 +42,13 @@ type EntriesState =
   | { kind: "loading" }
   | { kind: "success"; entries: Entry[] }
   | { kind: "error"; httpStatus: number | undefined };
+
+// 登録に失敗したときのメッセージ。入力は画面で先に確かめているが、backend の検証とずれたときに 422 が返る
+const submitErrorMessage = (httpStatus: number | undefined): string => {
+  if (httpStatus === 401) return SESSION_EXPIRED_MESSAGE;
+  if (httpStatus === 422) return `入力内容を確かめてください。気分を選び、ひとことは${NOTE_MAX_LENGTH}文字以内にしてください。`;
+  return "記録できませんでした。時間をおいてもう一度お試しください。";
+};
 
 // トークンの期限切れ（API Gatewayが401を返す）のとき、ログインし直してもらう
 const SESSION_EXPIRED_MESSAGE = "ログインの有効期限が切れました。ログアウトしてから、ログインし直してください。";
@@ -155,13 +163,7 @@ function Entries({ baseUrl, accessToken }: { baseUrl: string; accessToken: strin
       await createEntry(baseUrl, accessToken, input);
     } catch (error: unknown) {
       const httpStatus = error instanceof EntriesFetchError ? error.httpStatus : undefined;
-      return {
-        ok: false,
-        message:
-          httpStatus === 401
-            ? SESSION_EXPIRED_MESSAGE
-            : "記録できませんでした。時間をおいてもう一度お試しください。",
-      };
+      return { ok: false, message: submitErrorMessage(httpStatus) };
     }
     setVersion((v) => v + 1);
     return { ok: true };
