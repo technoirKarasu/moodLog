@@ -33,6 +33,20 @@ docker compose up -d
 
 `GET /health` にアクセスするとDB接続の成否を含めて返す（成功時200、失敗時503）。
 
+ログインが必要なAPI（`/me`、`/entries`）は、トークンの検証を API Gateway が行うため、ローカルの uvicorn では401になる。
+
+## ディレクトリ
+
+`app/` は `routers`（HTTPの入出力）→ `services`（業務ルール）→ `repositories`（DBアクセス）の層に分ける（`docs/design-principles.md`）。
+
+- `app/models.py`: テーブルの定義（ORM）。`migrations/env.py` の autogenerate にも使う
+- `app/routers/`、`app/services/`、`app/repositories/`: 上の層
+- `app/auth.py`: ログイン中のユーザー（Cognito の `sub`）を返す依存関数
+- `app/clock.py`: 現在時刻を返す依存関数（テストで固定する）
+- `app/migrate.py`: 本番DBにマイグレーションを流すLambda（ADR 0011）
+- `app/batch/`: 定期処理のLambda
+- `migrations/`: Alembic のマイグレーション
+
 ## テスト・lint
 
 ```sh

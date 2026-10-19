@@ -15,7 +15,15 @@ import {
   ProgressIndicatorSpinner,
 } from "@/components/dads/ProgressIndicator";
 import { fetchHealth, HealthFetchError, type HealthResult } from "@/lib/api/health";
-import { fetchMe, MeFetchError, type MeResponse } from "@/lib/api/me";
+import { EntryForm, type SubmitResult } from "@/components/EntryForm";
+import { EntryList } from "@/components/EntryList";
+import {
+  createEntry,
+  type Entry,
+  type EntryInput,
+  EntriesFetchError,
+  fetchEntries,
+} from "@/lib/api/entries";
 import { type AuthConfig, authConfig, loadUser, signIn, signOut } from "@/lib/auth";
 
 type State =
@@ -29,10 +37,13 @@ type AccountState =
   | { kind: "signedIn"; user: User }
   | { kind: "error" };
 
-type MeState =
+type EntriesState =
   | { kind: "loading" }
-  | { kind: "success"; me: MeResponse }
+  | { kind: "success"; entries: Entry[] }
   | { kind: "error"; httpStatus: number | undefined };
+
+// トークンの期限切れ（API Gatewayが401を返す）のとき、ログインし直してもらう
+const SESSION_EXPIRED_MESSAGE = "ログインの有効期限が切れました。ログアウトしてから、ログインし直してください。";
 
 // ビルド時に埋め込まれる（静的エクスポートのため、実行時には変えられない）
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -86,12 +97,12 @@ function Account({ baseUrl, config }: { baseUrl: string; config: AuthConfig }) {
 
   if (state.kind === "signedIn") {
     return (
-      <div className="grid gap-4">
+      <div className="grid gap-8">
         <Dl>
           <Dt>メールアドレス</Dt>
           <Dd>{state.user.profile.email ?? "（不明）"}</Dd>
-          <MeStatus baseUrl={baseUrl} accessToken={state.user.access_token} />
         </Dl>
+        <Entries baseUrl={baseUrl} accessToken={state.user.access_token} />
         {/* 画面の主な操作ではない機能ボタンのため、重要度を下げてアウトラインにする（DADSのボタン「使い方」） */}
         <Button size="md" variant="outline" onClick={() => void signOut(config)}>
           ログアウト
@@ -118,34 +129,72 @@ function Account({ baseUrl, config }: { baseUrl: string; config: AuthConfig }) {
   );
 }
 
-// 認証が必要なAPI（/me）をアクセストークン付きで呼べることを示す。Dl の中に置く
-function MeStatus({ baseUrl, accessToken }: { baseUrl: string; accessToken: string }) {
-  const [state, setState] = useState<MeState>({ kind: "loading" });
+// 記録の入力欄と、直近7日の一覧。登録に成功したら一覧を取り直す
+function Entries({ baseUrl, accessToken }: { baseUrl: string; accessToken: string }) {
+  const [state, setState] = useState<EntriesState>({ kind: "loading" });
+  // 登録に成功するたびに増やし、一覧を取り直すきっかけにする
+  const [version, setVersion] = useState(0);
 
   useEffect(() => {
     let ignore = false;
-    fetchMe(baseUrl, accessToken)
-      .then((me) => {
-        if (!ignore) setState({ kind: "success", me });
+    fetchEntries(baseUrl, accessToken)
+      .then((entries) => {
+        if (!ignore) setState({ kind: "success", entries });
       })
       .catch((error: unknown) => {
-        const httpStatus = error instanceof MeFetchError ? error.httpStatus : undefined;
+        const httpStatus = error instanceof EntriesFetchError ? error.httpStatus : undefined;
         if (!ignore) setState({ kind: "error", httpStatus });
       });
     return () => {
       ignore = true;
     };
-  }, [baseUrl, accessToken]);
+  }, [baseUrl, accessToken, version]);
+
+  const handleSubmit = async (input: EntryInput): Promise<SubmitResult> => {
+    try {
+      await createEntry(baseUrl, accessToken, input);
+    } catch (error: unknown) {
+      const httpStatus = error instanceof EntriesFetchError ? error.httpStatus : undefined;
+      return {
+        ok: false,
+        message:
+          httpStatus === 401
+            ? SESSION_EXPIRED_MESSAGE
+            : "記録できませんでした。時間をおいてもう一度お試しください。",
+      };
+    }
+    setVersion((v) => v + 1);
+    return { ok: true };
+  };
 
   return (
     <>
-      <Dt>ユーザーID（/me）</Dt>
-      <Dd>
-        {state.kind === "loading" && "読み込み中"}
-        {state.kind === "success" && state.me.sub}
-        {state.kind === "error" &&
-          `取得できませんでした${state.httpStatus !== undefined ? `（HTTPステータス: ${state.httpStatus}）` : ""}`}
-      </Dd>
+      <section className="grid gap-4">
+        <Heading size="24">
+          <HeadingTitle level="h2">記録する</HeadingTitle>
+        </Heading>
+        <EntryForm onSubmit={handleSubmit} />
+      </section>
+      <section className="grid gap-4">
+        <Heading size="24">
+          <HeadingTitle level="h2">この7日間の記録</HeadingTitle>
+        </Heading>
+        {state.kind === "loading" && <p>読み込み中</p>}
+        {state.kind === "success" && <EntryList entries={state.entries} />}
+        {state.kind === "error" && (
+          <div role="alert">
+            <NotificationBanner bannerStyle="standard" type="error" title="記録を読み込めませんでした">
+              <NotificationBannerBody>
+                <p>
+                  {state.httpStatus === 401
+                    ? SESSION_EXPIRED_MESSAGE
+                    : "時間をおいて再読み込みしてください。"}
+                </p>
+              </NotificationBannerBody>
+            </NotificationBanner>
+          </div>
+        )}
+      </section>
     </>
   );
 }

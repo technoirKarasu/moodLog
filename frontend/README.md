@@ -14,7 +14,7 @@ cp .env.example .env.local
 
 `NEXT_PUBLIC_*` はビルド時に埋め込まれる。値を変えたら、開発サーバーを再起動するかビルドし直す。
 
-ローカル（`http://localhost:3000`）からも本番のCognitoでログインできる。ただし、ログインが必要なAPI（`/me` など）は、トークンの検証を API Gateway が行うため、ローカルの uvicorn では401になる。
+ローカル（`http://localhost:3000`）からも本番のCognitoでログインできる。ただし、ログインが必要なAPI（`/entries` など）は、トークンの検証を API Gateway が行うため、ローカルの uvicorn では401になる。
 
 ## 起動・ビルド
 
@@ -36,7 +36,9 @@ npm run typecheck
 ## ディレクトリ
 
 - `app/`: ページとレイアウト
+- `components/`: 画面の部品（記録の入力欄 `EntryForm`、一覧 `EntryList`、気分のアイコン `MoodIcon`）
 - `lib/api/`: backend のAPIを呼ぶクライアント
+- `lib/mood.ts`: 気分の値とラベル、短文の文字数の数え方（backend と同じくコードポイントで数える）
 - `lib/auth.ts`: Cognitoでのログイン・ログアウト（ADR 0009、ADR 0010）
 - `components/dads/`: DADS公式のReact版スニペットをコピーしたもの（出典と変更点は各ファイルの先頭、ライセンスは `LICENSE`）
   - 使うコンポーネントのディレクトリごとコピーし、Storybook用の `*.stories.tsx` は除く。使わないと判断したファイルを除いた場合は、そのディレクトリの `index.ts` に理由を書く
