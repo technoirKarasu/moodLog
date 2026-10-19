@@ -18,6 +18,13 @@ def health(
     return {"status": "ok" if db_ok else "error", "db": db_ok}
 
 
+# CORSのプリフライト。API Gatewayの OPTIONS /{proxy+} ルートから届く
+# （infra/api_gateway.tf）。2xxを返すだけでよく、CORSのヘッダーはAPI Gatewayが付ける
+@app.options("/{path:path}", status_code=204)
+def preflight() -> Response:
+    return Response(status_code=204)
+
+
 class MeResponse(BaseModel):
     sub: str
 

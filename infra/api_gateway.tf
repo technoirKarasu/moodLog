@@ -23,6 +23,9 @@ resource "aws_apigatewayv2_api" "api" {
     allow_methods = ["GET"]
     # アクセストークンを送るため
     allow_headers = ["authorization"]
+    # Authorizationヘッダーを付けた呼び出しには毎回プリフライトが要り、それぞれLambdaを呼ぶ。
+    # ブラウザにプリフライトの結果を覚えさせ、Lambdaの呼び出しと流量制限の消費を減らす（秒）
+    max_age = 600
   }
 }
 
@@ -63,7 +66,8 @@ resource "aws_apigatewayv2_route" "health" {
 
 # $default はOPTIONSも受けるため、そのままではプリフライトにもトークンが求められて失敗する。
 # 認証なしのOPTIONSルートを作る（API Gatewayのドキュメント「HTTP APIのCORSの設定」の、$default で認可を使う場合の手順）。
-# CORSを設定しているので、プリフライトにはAPI Gatewayが答え、Lambdaは呼ばれない
+# このルートに来たプリフライトはLambdaに届くため、FastAPIが204を返し、CORSのヘッダーはAPI Gatewayが付ける
+# （統合を付けないと $default に落ちて401になることを、Issue #59 で確かめた）
 resource "aws_apigatewayv2_route" "preflight" {
   api_id    = aws_apigatewayv2_api.api.id
   route_key = "OPTIONS /{proxy+}"
