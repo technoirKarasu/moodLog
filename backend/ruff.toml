@@ -5,12 +5,8 @@
 target-version = "py313"
 
 # alembic revision が自動生成するファイル。backend/build/ は .gitignore に入っており、ruff は既定で .gitignore に従う
-extend-exclude = ["alembic/versions"]
+extend-exclude = ["migrations/versions"]
 
 [lint]
 # E: pycodestyle のエラー、F: pyflakes、I: import の並び順、B: bugbear（バグになりやすい書き方）、UP: pyupgrade
 select = ["E", "F", "I", "B", "UP"]
-
-[lint.isort]
-# backend/alembic/ ディレクトリがあるため、そのままでは外部ライブラリの alembic を自作コードとして扱ってしまう
-known-third-party = ["alembic"]
