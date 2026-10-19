@@ -52,3 +52,17 @@ variable "weekly_summary_schedule" {
     error_message = "weekly_summary_schedule には cron(...)、rate(...)、at(...) のいずれかを指定してください。"
   }
 }
+
+# GoogleでログインするためのOAuthクライアント（Google Cloud Consoleで作る。手順は infra/README.md）。
+# 公開リポジトリに載せないため、デフォルト値を持たせず infra/terraform.tfvars（コミットしない）で渡す。
+# シークレットはtfstate（S3、暗号化あり）に平文で入る
+variable "google_client_id" {
+  description = "GoogleのOAuthクライアントID"
+  type        = string
+}
+
+variable "google_client_secret" {
+  description = "GoogleのOAuthクライアントシークレット"
+  type        = string
+  sensitive   = true
+}
