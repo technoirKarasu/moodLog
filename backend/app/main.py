@@ -6,8 +6,10 @@ from pydantic import BaseModel
 
 from app.auth import current_user_sub
 from app.db import check_connection
+from app.routers import entries
 
 app = FastAPI()
+app.include_router(entries.router)
 
 
 @app.get("/health")
