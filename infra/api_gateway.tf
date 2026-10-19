@@ -20,10 +20,10 @@ resource "aws_apigatewayv2_api" "api" {
       "https://${aws_cloudfront_distribution.frontend.domain_name}",
       "http://localhost:3000",
     ]
-    # 今のAPIは GET だけ
-    allow_methods = ["GET"]
-    # アクセストークンを送るため
-    allow_headers = ["authorization"]
+    # 記録の登録（POST /entries、Issue #66）と取得
+    allow_methods = ["GET", "POST"]
+    # アクセストークンと、JSONの本文を送るため
+    allow_headers = ["authorization", "content-type"]
     # Authorizationヘッダーを付けた呼び出しには毎回プリフライトが要り、それぞれLambdaを呼ぶ。
     # ブラウザにプリフライトの結果を覚えさせ、Lambdaの呼び出しと流量制限の消費を減らす（秒）
     max_age = 600

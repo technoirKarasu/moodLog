@@ -31,4 +31,6 @@ def test_alembic_config_finds_migrations():
     # zip の中と同じ相対位置（alembic.ini と migrations/）で読めることを確かめる
     script = ScriptDirectory.from_config(migrate.alembic_config())
 
-    assert script.get_current_head() == "5bd71c859282"
+    head = script.get_revision(script.get_current_head())
+    assert head.revision == "c257885c8449"
+    assert head.down_revision == "5bd71c859282"
