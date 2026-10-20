@@ -1,6 +1,6 @@
 // 気分の顔のアイコン。DADSに気分を表すアイコンがないため自作した。
 // 意味は横に置く文字のラベルで伝えるため、スクリーンリーダーからは隠す（aria-hidden）。
-// 色は currentColor で、周りの文字色に従う
+// 色はキーカラーの濃い色（key-900）。白い面の上で 5.8:1、背景 key-50 の上で 5.3:1（文字以外の基準は 3:1）
 
 import type { Mood } from "@/lib/mood";
 
@@ -14,7 +14,7 @@ const mouths: Record<Mood, string> = {
 export function MoodIcon({ mood, className }: { mood: Mood; className?: string }) {
   return (
     <svg
-      className={className}
+      className={`text-key-900 ${className ?? ""}`}
       viewBox="0 0 24 24"
       width="24"
       height="24"

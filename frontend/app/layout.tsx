@@ -22,10 +22,11 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
     <html lang="ja">
       {/*
         DADSは文字色と一緒に背景色も指定するよう求めている（ブラウザ設定で背景が変わってもコントラストを保つため）。
+        背景はキーカラーのバックグラウンド（key-50。globals.css）。赤い文字は、この上ではなく Panel の中に置く。
         左右のマージンは、DADSに具体値の定めがないため、8px基準でモバイル16px・デスクトップ32pxとする
       */}
       <body
-        className={`${notoSansJp.className} bg-white text-solid-gray-800 text-std-16N-170 px-4 py-8 desktop:px-8`}
+        className={`${notoSansJp.className} bg-key-50 text-solid-gray-800 text-std-16N-170 px-4 py-8 desktop:px-8`}
       >
         {children}
       </body>

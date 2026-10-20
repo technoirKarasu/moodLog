@@ -16,6 +16,7 @@ import {
 } from "@/components/dads/ProgressIndicator";
 import { EntryForm, type SubmitResult } from "@/components/EntryForm";
 import { EntryList } from "@/components/EntryList";
+import { Panel } from "@/components/Panel";
 import {
   createEntry,
   type Entry,
@@ -61,15 +62,21 @@ export default function Home() {
   return (
     <main className="grid gap-8">
       <Heading size="32">
-        <HeadingTitle level="h1">moodLog</HeadingTitle>
+        <HeadingTitle level="h1" className="text-key-900">
+          moodLog
+        </HeadingTitle>
       </Heading>
       {apiBaseUrl && authConfig ? (
         <>
           <Account baseUrl={apiBaseUrl} config={authConfig} />
-          <HealthStatus baseUrl={apiBaseUrl} />
+          <Panel>
+            <HealthStatus baseUrl={apiBaseUrl} />
+          </Panel>
         </>
       ) : (
-        <MissingConfig />
+        <Panel>
+          <MissingConfig />
+        </Panel>
       )}
     </main>
   );
@@ -120,21 +127,24 @@ function Account({ baseUrl, config }: { baseUrl: string; config: AuthConfig }) {
     );
   }
 
+  // ログインの失敗（赤い文字）を出すため、白い面の中に置く
   return (
-    <div className="grid gap-4">
-      {state.kind === "error" && (
-        <div role="alert">
-          <NotificationBanner bannerStyle="standard" type="error" title="ログインできませんでした">
-            <NotificationBannerBody>
-              <p>もう一度ログインしてください。</p>
-            </NotificationBannerBody>
-          </NotificationBanner>
-        </div>
-      )}
-      <Button size="md" variant="solid-fill" onClick={() => void signIn(config)}>
-        ログイン
-      </Button>
-    </div>
+    <Panel>
+      <div className="grid gap-4">
+        {state.kind === "error" && (
+          <div role="alert">
+            <NotificationBanner bannerStyle="standard" type="error" title="ログインできませんでした">
+              <NotificationBannerBody>
+                <p>もう一度ログインしてください。</p>
+              </NotificationBannerBody>
+            </NotificationBanner>
+          </div>
+        )}
+        <Button size="md" variant="solid-fill" onClick={() => void signIn(config)}>
+          ログイン
+        </Button>
+      </div>
+    </Panel>
   );
 }
 
@@ -172,32 +182,36 @@ function Entries({ baseUrl, accessToken }: { baseUrl: string; accessToken: strin
 
   return (
     <>
-      <section className="grid gap-4">
-        <Heading size="24">
-          <HeadingTitle level="h2">記録する</HeadingTitle>
-        </Heading>
-        <EntryForm onSubmit={handleSubmit} />
-      </section>
-      <section className="grid gap-4">
-        <Heading size="24">
-          <HeadingTitle level="h2">この7日間の記録</HeadingTitle>
-        </Heading>
-        {state.kind === "loading" && <p>読み込み中</p>}
-        {state.kind === "success" && <EntryList entries={state.entries} />}
-        {state.kind === "error" && (
-          <div role="alert">
-            <NotificationBanner bannerStyle="standard" type="error" title="記録を読み込めませんでした">
-              <NotificationBannerBody>
-                <p>
-                  {state.httpStatus === 401
-                    ? SESSION_EXPIRED_MESSAGE
-                    : "時間をおいて再読み込みしてください。"}
-                </p>
-              </NotificationBannerBody>
-            </NotificationBanner>
-          </div>
-        )}
-      </section>
+      <Panel>
+        <section className="grid gap-4">
+          <Heading size="24">
+            <HeadingTitle level="h2">記録する</HeadingTitle>
+          </Heading>
+          <EntryForm onSubmit={handleSubmit} />
+        </section>
+      </Panel>
+      <Panel>
+        <section className="grid gap-4">
+          <Heading size="24">
+            <HeadingTitle level="h2">この7日間の記録</HeadingTitle>
+          </Heading>
+          {state.kind === "loading" && <p>読み込み中</p>}
+          {state.kind === "success" && <EntryList entries={state.entries} />}
+          {state.kind === "error" && (
+            <div role="alert">
+              <NotificationBanner bannerStyle="standard" type="error" title="記録を読み込めませんでした">
+                <NotificationBannerBody>
+                  <p>
+                    {state.httpStatus === 401
+                      ? SESSION_EXPIRED_MESSAGE
+                      : "時間をおいて再読み込みしてください。"}
+                  </p>
+                </NotificationBannerBody>
+              </NotificationBanner>
+            </div>
+          )}
+        </section>
+      </Panel>
     </>
   );
 }
