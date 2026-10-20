@@ -24,14 +24,8 @@ import {
   EntriesFetchError,
   fetchEntries,
 } from "@/lib/api/entries";
-import { fetchHealth, HealthFetchError, type HealthResult } from "@/lib/api/health";
 import { type AuthConfig, authConfig, loadUser, signIn, signOut } from "@/lib/auth";
 import { NOTE_MAX_LENGTH } from "@/lib/mood";
-
-type State =
-  | { kind: "loading" }
-  | { kind: "success"; result: HealthResult }
-  | { kind: "error"; httpStatus: number | undefined };
 
 type AccountState =
   | { kind: "loading" }
@@ -67,12 +61,7 @@ export default function Home() {
         </HeadingTitle>
       </Heading>
       {apiBaseUrl && authConfig ? (
-        <>
-          <Account baseUrl={apiBaseUrl} config={authConfig} />
-          <Panel>
-            <HealthStatus baseUrl={apiBaseUrl} />
-          </Panel>
-        </>
+        <Account baseUrl={apiBaseUrl} config={authConfig} />
       ) : (
         <Panel>
           <MissingConfig />
@@ -102,7 +91,8 @@ function Account({ baseUrl, config }: { baseUrl: string; config: AuthConfig }) {
   }, [config]);
 
   if (state.kind === "loading") {
-    // ページを開いたときに自動で始まる読み込みのため、通知はしない（HealthStatus と同じ）
+    // ページを開いたときに自動で始まる読み込みのため、useProgressIndicatorAnnouncer での通知はしない
+    // （公式の説明: 暗黙的な操作で始まる読み込みでは通知は不要。https://github.com/digital-go-jp/design-system-example-components-react/blob/68b452e/src/components/ProgressIndicator/ProgressIndicator.stories.tsx#L296）
     return (
       <ProgressIndicator type="stacked" aria-labelledby={labelId}>
         <ProgressIndicatorSpinner size="lg" />
@@ -213,62 +203,6 @@ function Entries({ baseUrl, accessToken }: { baseUrl: string; accessToken: strin
         </section>
       </Panel>
     </>
-  );
-}
-
-function HealthStatus({ baseUrl }: { baseUrl: string }) {
-  const [state, setState] = useState<State>({ kind: "loading" });
-  const labelId = useId();
-
-  useEffect(() => {
-    let ignore = false;
-    fetchHealth(baseUrl)
-      .then((result) => {
-        if (!ignore) setState({ kind: "success", result });
-      })
-      .catch((error: unknown) => {
-        const httpStatus = error instanceof HealthFetchError ? error.httpStatus : undefined;
-        if (!ignore) setState({ kind: "error", httpStatus });
-      });
-    return () => {
-      ignore = true;
-    };
-  }, [baseUrl]);
-
-  if (state.kind === "loading") {
-    // ページを開いたときに自動で始まる読み込みのため、useProgressIndicatorAnnouncer での通知はしない
-    // （公式の説明: 暗黙的な操作で始まる読み込みでは通知は不要。https://github.com/digital-go-jp/design-system-example-components-react/blob/68b452e/src/components/ProgressIndicator/ProgressIndicator.stories.tsx#L296）
-    return (
-      <ProgressIndicator type="stacked" aria-labelledby={labelId}>
-        <ProgressIndicatorSpinner size="lg" />
-        <span id={labelId}>読み込み中</span>
-      </ProgressIndicator>
-    );
-  }
-
-  if (state.kind === "error") {
-    return (
-      <div role="alert">
-        <NotificationBanner bannerStyle="standard" type="error" title="APIに接続できませんでした">
-          <NotificationBannerBody>
-            <p>時間をおいて再読み込みしてください。</p>
-            {state.httpStatus !== undefined && <p>HTTPステータス: {state.httpStatus}</p>}
-          </NotificationBannerBody>
-        </NotificationBanner>
-      </div>
-    );
-  }
-
-  const { httpStatus, body } = state.result;
-  return (
-    <Dl>
-      <Dt>status</Dt>
-      <Dd>{body.status}</Dd>
-      <Dt>db</Dt>
-      <Dd>{String(body.db)}</Dd>
-      <Dt>HTTPステータス</Dt>
-      <Dd>{httpStatus}</Dd>
-    </Dl>
   );
 }
 
