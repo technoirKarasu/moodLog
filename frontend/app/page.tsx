@@ -46,7 +46,7 @@ type AccountState =
 type EntriesState =
   | { kind: "loading" }
   | { kind: "success"; entries: Entry[] }
-  | { kind: "error"; httpStatus: number | undefined };
+  | { kind: "error" };
 
 // 登録に失敗したときのメッセージ。入力は画面で先に確かめているが、backend の検証とずれたときに 422 が返る。
 // 401 はトークンを取り直して呼び直してから届くため（callWithRenewal）、ほかの失敗と同じに扱う
@@ -87,8 +87,8 @@ function Account({ baseUrl, config }: { baseUrl: string; config: AuthConfig }) {
     let ignore = false;
     // マネージドログインから戻ってきたときは、ここで認可コードをトークンに替える
     loadUser(config)
-      .then((user) => {
-        if (!ignore) setState(user ? { kind: "signedIn", user } : { kind: "signedOut" });
+      .then((loaded) => {
+        if (!ignore) setState(loaded);
       })
       .catch(() => {
         if (!ignore) setState({ kind: "error" });
@@ -155,9 +155,9 @@ function Account({ baseUrl, config }: { baseUrl: string; config: AuthConfig }) {
         )}
         {state.kind === "error" && (
           <div role="alert">
-            <NotificationBanner bannerStyle="standard" type="error" title="ログインできませんでした">
+            <NotificationBanner bannerStyle="standard" type="error" title="ログイン状態を確認できませんでした">
               <NotificationBannerBody>
-                <p>もう一度ログインしてください。</p>
+                <p>時間をおいて再読み込みするか、もう一度ログインしてください。</p>
               </NotificationBannerBody>
             </NotificationBanner>
           </div>
@@ -211,9 +211,8 @@ function Entries({ baseUrl, config, accessToken, onSessionExpired }: EntriesProp
       .then((entries) => {
         if (!ignore) setState({ kind: "success", entries });
       })
-      .catch((error: unknown) => {
-        const httpStatus = error instanceof EntriesFetchError ? error.httpStatus : undefined;
-        if (!ignore) setState({ kind: "error", httpStatus });
+      .catch(() => {
+        if (!ignore) setState({ kind: "error" });
       });
     return () => {
       ignore = true;

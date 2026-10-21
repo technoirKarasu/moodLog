@@ -87,7 +87,7 @@ const handleCallbackIfPresent = (manager: UserManager): Promise<void> => {
 
 // renewUser どうしの同時呼び出し（401の呼び直しが重なる、Strict Mode で loadUser が2回走る）を1回にまとめる。
 // 自動の更新はライブラリが signinSilent を直接呼ぶため、これと重なると2回取り直すことがある。
-// Cognitoのリフレッシュトークンのローテーションは無効（infra/auth.tf）なので、どちらも成功し問題ない
+// Cognitoのリフレッシュトークンのローテーションは既定で無効（infra/auth.tf では設定していない）なので、どちらも成功し問題ない
 let renewPromise: Promise<User | null> | undefined;
 
 // アクセストークンを取り直す。
@@ -111,15 +111,23 @@ export const renewUser = (config: AuthConfig): Promise<User | null> => {
   return renewPromise;
 };
 
-// ログイン中のユーザーを返す。ログインしていなければ null。
-// 期限が切れていても、リフレッシュトークンがあれば取り直す
-export const loadUser = async (config: AuthConfig): Promise<User | null> => {
+export type LoadedUser =
+  | { kind: "signedIn"; user: User }
+  | { kind: "signedOut" }
+  // 期限が切れていて、Cognitoが取り直しを拒んだ（ログインし直しが要る）
+  | { kind: "expired" };
+
+// ログイン状態を返す。期限が切れていても、リフレッシュトークンがあれば取り直す。
+// 取り直しの通信の失敗などは、例外のまま投げる
+export const loadUser = async (config: AuthConfig): Promise<LoadedUser> => {
   const manager = getUserManager(config);
   await handleCallbackIfPresent(manager);
   const user = await manager.getUser();
-  if (user === null) return null;
-  if (!user.expired) return user;
-  return user.refresh_token ? renewUser(config) : null;
+  if (user === null) return { kind: "signedOut" };
+  if (!user.expired) return { kind: "signedIn", user };
+  if (!user.refresh_token) return { kind: "expired" };
+  const renewed = await renewUser(config);
+  return renewed ? { kind: "signedIn", user: renewed } : { kind: "expired" };
 };
 
 export type UserChange =
@@ -129,7 +137,9 @@ export type UserChange =
   | { kind: "expired" };
 
 // 自動の更新と renewUser の結果を受け取る。解除する関数を返す。
-// 自動の更新の通信の失敗は、ライブラリが繰り返し取り直すため、ここでは知らせない
+// 自動の更新の通信の失敗は、ここでは知らせない（ログインしたままにする）。ライブラリが取り直し直すのは
+// タイムアウトのときだけで、それ以外の失敗では次の期限前の更新は仕掛けられない。その後は、APIが401を
+// 返したときに callWithRenewal（app/page.tsx）で取り直す
 export const watchUser = (config: AuthConfig, onChange: (change: UserChange) => void): (() => void) => {
   const manager = getUserManager(config);
   const handleLoaded = (user: User) => onChange({ kind: "renewed", user });
