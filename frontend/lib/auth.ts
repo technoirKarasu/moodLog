@@ -125,7 +125,11 @@ export const loadUser = async (config: AuthConfig): Promise<LoadedUser> => {
   const user = await manager.getUser();
   if (user === null) return { kind: "signedOut" };
   if (!user.expired) return { kind: "signedIn", user };
-  if (!user.refresh_token) return { kind: "expired" };
+  if (!user.refresh_token) {
+    // renewUser・watchUser と同じく、使えなくなったユーザーは消す（再読み込みのたびに案内が出続けないように）
+    await manager.removeUser();
+    return { kind: "expired" };
+  }
   const renewed = await renewUser(config);
   return renewed ? { kind: "signedIn", user: renewed } : { kind: "expired" };
 };
