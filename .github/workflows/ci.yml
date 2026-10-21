@@ -20,7 +20,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  backend:
+  backend-check:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -41,7 +41,7 @@ jobs:
       - run: backend/.venv/bin/pytest backend
       - run: backend/.venv/bin/ruff check backend
 
-  frontend:
+  frontend-check:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -58,7 +58,7 @@ jobs:
       - run: npm --prefix frontend run lint
       - run: npm --prefix frontend run typecheck
 
-  terraform:
+  terraform-check:
     # ロックファイルのハッシュは linux_amd64 と darwin_arm64 だけなので、x86_64 のランナーで動かす
     runs-on: ubuntu-latest
     timeout-minutes: 10
