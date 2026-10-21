@@ -1,0 +1,85 @@
+# PRで機械判定を流す。コマンドは CLAUDE.md の「機械判定のコマンド」と同じにする。
+# Issue #14: GitHub ActionsでCI/CDを構築する（mainマージ時のデプロイは #76）
+#
+# AWSの認証もSecretsも使わない。terraform plan は今までどおり手元で実行し、結果をPRに載せる
+
+name: CI
+
+# paths で絞らない。ブランチ保護でこのチェックを必須にしたとき（#15）、
+# 走らなかったチェックが「待ち」のまま残り、マージできなくなるため
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# 同じPRに続けてpushしたときは、古い実行を止める
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  backend-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      # Lambdaのランタイムと同じバージョン
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+
+      # 手元と同じ backend/.venv を作り、CLAUDE.md のコマンドをそのまま使う
+      - run: python -m venv backend/.venv
+      - run: backend/.venv/bin/pip install -r backend/requirements-dev.txt
+
+      # 今のテストはDBに接続しない。実際のPostgreSQLを使うテストは #77
+      - run: backend/.venv/bin/pytest backend
+      - run: backend/.venv/bin/ruff check backend
+
+  frontend-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          # ロックファイルがリポジトリのルートにないため指定する
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci --prefix frontend
+      - run: npm --prefix frontend run lint
+      - run: npm --prefix frontend run typecheck
+
+  terraform-check:
+    # ロックファイルのハッシュは linux_amd64 と darwin_arm64 だけなので、x86_64 のランナーで動かす
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.16.2"
+
+      # build_lambda.sh が使う python3。ランナーに入っているバージョンに左右されないよう揃える
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - run: terraform -chdir=infra fmt -check
+
+      # S3のstateには触れない。ロックファイル（#67）とずれたら、ここで失敗する
+      - run: terraform -chdir=infra init -backend=false -lockfile=readonly -input=false
+
+      # infra/lambda.tf が backend/build/lambda.zip を読むため、validate の前に作る。
+      # デプロイ（#76）でも使うスクリプトが、PRの時点で動くことも確かめる
+      - run: backend/scripts/build_lambda.sh
+      - run: terraform -chdir=infra validate
