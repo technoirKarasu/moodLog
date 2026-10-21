@@ -3,8 +3,14 @@
 // 認可コードフロー＋PKCEでトークンを受け取る。トークンは oidc-client-ts の既定どおり sessionStorage に持つ。
 // コールバックはトップページ（/）で受ける。静的エクスポートでは /callback が callback.html になり、
 // CloudFrontから引けないため。
+//
+// アクセストークン（1時間）は、リフレッシュトークン（Cognitoの既定で30日）で取り直す（Issue #72）。
+// - 期限の前: automaticSilentRenew が自動で取り直す
+// - 再読み込みで期限が切れていたとき、APIが401を返したとき: renewUser で取り直す
+// Cognitoが取り直しを拒んだ（リフレッシュトークンの期限切れなど）ときだけログインし直しにする。
+// 通信の一時的な失敗では、ログインしたままにする（入力の途中のひとことを消さないため）
 
-import { type User, UserManager } from "oidc-client-ts";
+import { ErrorResponse, type User, UserManager } from "oidc-client-ts";
 
 export type AuthConfig = {
   // CognitoのトークンのIssuer（https://cognito-idp.<リージョン>.amazonaws.com/<ユーザープールID>）。
@@ -36,6 +42,9 @@ const getUserManager = (config: AuthConfig): UserManager => {
     redirect_uri: redirectUri(),
     response_type: "code",
     scope: "openid email",
+    // 既定で有効だが、期限の前に取り直すことに頼っているため明示する。
+    // リフレッシュトークンがあれば iframe を使わずに取り直す
+    automaticSilentRenew: true,
   });
   return userManager;
 };
@@ -76,10 +85,63 @@ const handleCallbackIfPresent = (manager: UserManager): Promise<void> => {
   return callbackPromise;
 };
 
-// ログイン中のユーザーを返す。ログインしていない、またはトークンの期限が切れていれば null
+// renewUser どうしの同時呼び出し（401の呼び直しが重なる、Strict Mode で loadUser が2回走る）を1回にまとめる。
+// 自動の更新はライブラリが signinSilent を直接呼ぶため、これと重なると2回取り直すことがある。
+// Cognitoのリフレッシュトークンのローテーションは無効（infra/auth.tf）なので、どちらも成功し問題ない
+let renewPromise: Promise<User | null> | undefined;
+
+// アクセストークンを取り直す。
+// - Cognitoが拒んだ（ErrorResponse）ときは、保存したユーザーを消して null を返す（ログインし直しが要る）
+// - 通信の失敗などそれ以外のときは、例外をそのまま投げる（一時的なエラー。ログインしたままにする）
+export const renewUser = (config: AuthConfig): Promise<User | null> => {
+  const manager = getUserManager(config);
+  // 終わったら共有をやめる。残すと、次の取り直しで終わった古い結果が返り続ける
+  renewPromise ??= manager
+    .signinSilent()
+    .catch(async (error: unknown) => {
+      if (error instanceof ErrorResponse) {
+        await manager.removeUser();
+        return null;
+      }
+      throw error;
+    })
+    .finally(() => {
+      renewPromise = undefined;
+    });
+  return renewPromise;
+};
+
+// ログイン中のユーザーを返す。ログインしていなければ null。
+// 期限が切れていても、リフレッシュトークンがあれば取り直す
 export const loadUser = async (config: AuthConfig): Promise<User | null> => {
   const manager = getUserManager(config);
   await handleCallbackIfPresent(manager);
   const user = await manager.getUser();
-  return user && !user.expired ? user : null;
+  if (user === null) return null;
+  if (!user.expired) return user;
+  return user.refresh_token ? renewUser(config) : null;
+};
+
+export type UserChange =
+  // 取り直した（自動の更新・renewUser のどちらでも）
+  | { kind: "renewed"; user: User }
+  // 自動の更新で、Cognitoが取り直しを拒んだ。保存したユーザーは消してある
+  | { kind: "expired" };
+
+// 自動の更新と renewUser の結果を受け取る。解除する関数を返す。
+// 自動の更新の通信の失敗は、ライブラリが繰り返し取り直すため、ここでは知らせない
+export const watchUser = (config: AuthConfig, onChange: (change: UserChange) => void): (() => void) => {
+  const manager = getUserManager(config);
+  const handleLoaded = (user: User) => onChange({ kind: "renewed", user });
+  const handleRenewError = async (error: Error) => {
+    if (!(error instanceof ErrorResponse)) return;
+    await manager.removeUser();
+    onChange({ kind: "expired" });
+  };
+  manager.events.addUserLoaded(handleLoaded);
+  manager.events.addSilentRenewError(handleRenewError);
+  return () => {
+    manager.events.removeUserLoaded(handleLoaded);
+    manager.events.removeSilentRenewError(handleRenewError);
+  };
 };

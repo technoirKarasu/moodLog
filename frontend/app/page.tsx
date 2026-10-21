@@ -1,7 +1,7 @@
 "use client";
 
 import type { User } from "oidc-client-ts";
-import { useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 
 import { Button } from "@/components/dads/Button";
 import { Dd, Dl, Dt } from "@/components/dads/Dl";
@@ -24,13 +24,23 @@ import {
   EntriesFetchError,
   fetchEntries,
 } from "@/lib/api/entries";
-import { type AuthConfig, authConfig, loadUser, signIn, signOut } from "@/lib/auth";
+import {
+  type AuthConfig,
+  authConfig,
+  loadUser,
+  renewUser,
+  signIn,
+  signOut,
+  watchUser,
+} from "@/lib/auth";
 import { NOTE_MAX_LENGTH } from "@/lib/mood";
 
 type AccountState =
   | { kind: "loading" }
   | { kind: "signedOut" }
   | { kind: "signedIn"; user: User }
+  // リフレッシュトークンも切れて、トークンを取り直せなかった
+  | { kind: "expired" }
   | { kind: "error" };
 
 type EntriesState =
@@ -38,16 +48,12 @@ type EntriesState =
   | { kind: "success"; entries: Entry[] }
   | { kind: "error"; httpStatus: number | undefined };
 
-// トークンの期限切れ（API Gatewayが401を返す）のとき、ログインし直してもらう
-const SESSION_EXPIRED_MESSAGE = "ログインの有効期限が切れました。ログアウトしてから、ログインし直してください。";
-
-// 登録に失敗したときのメッセージ。入力は画面で先に確かめているが、backend の検証とずれたときに 422 が返る
+// 登録に失敗したときのメッセージ。入力は画面で先に確かめているが、backend の検証とずれたときに 422 が返る。
+// 401 はトークンを取り直して呼び直してから届くため（callWithRenewal）、ほかの失敗と同じに扱う
 const submitErrorMessage = (httpStatus: number | undefined): string => {
-  if (httpStatus === 401) return SESSION_EXPIRED_MESSAGE;
   if (httpStatus === 422) return `入力内容を確かめてください。気分を選び、ひとことは${NOTE_MAX_LENGTH}文字以内にしてください。`;
   return "記録できませんでした。時間をおいてもう一度お試しください。";
 };
-
 
 // ビルド時に埋め込まれる（静的エクスポートのため、実行時には変えられない）
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -74,6 +80,8 @@ export default function Home() {
 function Account({ baseUrl, config }: { baseUrl: string; config: AuthConfig }) {
   const [state, setState] = useState<AccountState>({ kind: "loading" });
   const labelId = useId();
+  // Entries の一覧の取得が、描画のたびにやり直されないよう、同じ関数を渡し続ける
+  const handleSessionExpired = useCallback(() => setState({ kind: "expired" }), []);
 
   useEffect(() => {
     let ignore = false;
@@ -89,6 +97,16 @@ function Account({ baseUrl, config }: { baseUrl: string; config: AuthConfig }) {
       ignore = true;
     };
   }, [config]);
+
+  // トークンを取り直したら、ユーザー（アクセストークン）だけを差し替える。
+  // signedIn のまま描画する部品は変わらないため、入力の途中の気分とひとことは消えない
+  useEffect(
+    () =>
+      watchUser(config, (change) => {
+        setState(change.kind === "renewed" ? { kind: "signedIn", user: change.user } : { kind: "expired" });
+      }),
+    [config],
+  );
 
   if (state.kind === "loading") {
     // ページを開いたときに自動で始まる読み込みのため、useProgressIndicatorAnnouncer での通知はしない
@@ -108,7 +126,12 @@ function Account({ baseUrl, config }: { baseUrl: string; config: AuthConfig }) {
           <Dt>メールアドレス</Dt>
           <Dd>{state.user.profile.email ?? "（不明）"}</Dd>
         </Dl>
-        <Entries baseUrl={baseUrl} accessToken={state.user.access_token} />
+        <Entries
+          baseUrl={baseUrl}
+          config={config}
+          accessToken={state.user.access_token}
+          onSessionExpired={handleSessionExpired}
+        />
         {/* 画面の主な操作ではない機能ボタンのため、重要度を下げてアウトラインにする（DADSのボタン「使い方」） */}
         <Button size="md" variant="outline" onClick={() => void signOut(config)}>
           ログアウト
@@ -121,6 +144,15 @@ function Account({ baseUrl, config }: { baseUrl: string; config: AuthConfig }) {
   return (
     <Panel>
       <div className="grid gap-4">
+        {state.kind === "expired" && (
+          <div role="alert">
+            <NotificationBanner bannerStyle="standard" type="error" title="ログインの有効期限が切れました">
+              <NotificationBannerBody>
+                <p>もう一度ログインしてください。</p>
+              </NotificationBannerBody>
+            </NotificationBanner>
+          </div>
+        )}
         {state.kind === "error" && (
           <div role="alert">
             <NotificationBanner bannerStyle="standard" type="error" title="ログインできませんでした">
@@ -138,15 +170,44 @@ function Account({ baseUrl, config }: { baseUrl: string; config: AuthConfig }) {
   );
 }
 
+type EntriesProps = {
+  baseUrl: string;
+  config: AuthConfig;
+  accessToken: string;
+  // トークンを取り直せず、ログインし直しが要るときに呼ぶ
+  onSessionExpired: () => void;
+};
+
 // 記録の入力欄と、直近7日の一覧。登録に成功したら一覧を取り直す
-function Entries({ baseUrl, accessToken }: { baseUrl: string; accessToken: string }) {
+function Entries({ baseUrl, config, accessToken, onSessionExpired }: EntriesProps) {
   const [state, setState] = useState<EntriesState>({ kind: "loading" });
   // 登録に成功するたびに増やし、一覧を取り直すきっかけにする
   const [version, setVersion] = useState(0);
 
+  // API を呼び、401 ならトークンを取り直して1回だけ呼び直す。
+  // - 取り直せない（Cognitoが拒んだ）: ログインし直しを親に知らせる
+  // - 取り直しの通信の失敗、呼び直しもまた 401: 例外のまま返し、ふつうのエラーとして出す
+  const callWithRenewal = useCallback(
+    async <T,>(call: (token: string) => Promise<T>): Promise<T> => {
+      try {
+        return await call(accessToken);
+      } catch (error: unknown) {
+        if (!(error instanceof EntriesFetchError && error.httpStatus === 401)) throw error;
+        const user = await renewUser(config);
+        if (user === null) {
+          onSessionExpired();
+          throw error;
+        }
+        // 取り直したトークンは、親にも watchUser で届き、accessToken が差し替わる
+        return call(user.access_token);
+      }
+    },
+    [config, accessToken, onSessionExpired],
+  );
+
   useEffect(() => {
     let ignore = false;
-    fetchEntries(baseUrl, accessToken)
+    callWithRenewal((token) => fetchEntries(baseUrl, token))
       .then((entries) => {
         if (!ignore) setState({ kind: "success", entries });
       })
@@ -157,11 +218,11 @@ function Entries({ baseUrl, accessToken }: { baseUrl: string; accessToken: strin
     return () => {
       ignore = true;
     };
-  }, [baseUrl, accessToken, version]);
+  }, [baseUrl, callWithRenewal, version]);
 
   const handleSubmit = async (input: EntryInput): Promise<SubmitResult> => {
     try {
-      await createEntry(baseUrl, accessToken, input);
+      await callWithRenewal((token) => createEntry(baseUrl, token, input));
     } catch (error: unknown) {
       const httpStatus = error instanceof EntriesFetchError ? error.httpStatus : undefined;
       return { ok: false, message: submitErrorMessage(httpStatus) };
@@ -191,11 +252,7 @@ function Entries({ baseUrl, accessToken }: { baseUrl: string; accessToken: strin
             <div role="alert">
               <NotificationBanner bannerStyle="standard" type="error" title="記録を読み込めませんでした">
                 <NotificationBannerBody>
-                  <p>
-                    {state.httpStatus === 401
-                      ? SESSION_EXPIRED_MESSAGE
-                      : "時間をおいて再読み込みしてください。"}
-                  </p>
+                  <p>時間をおいて再読み込みしてください。</p>
                 </NotificationBannerBody>
               </NotificationBanner>
             </div>
