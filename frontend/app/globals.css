@@ -7,4 +7,29 @@
    * テーマプラグインのv3版（screens.desktop: "48em"）にしかなく、v4版にはないため、同じ値で補う
    */
   --breakpoint-desktop: 48em;
+
+  /*
+   * moodLog のキーカラーは DADS のシアン（Issue #73）。DADS のキーカラーの仕組み（同じ色相の階調からプライマリーや
+   * バックグラウンドを選ぶ）に従い、プラグインが青で定義している key の階調を、プラグインのシアンの階調に差し替える。
+   * 色の値は書かず、プラグインの値を参照する。DADS の部品は key-* のクラスを使っているため、部品は変えずに切り替わる。
+   *
+   * 選んだ理由: 既定の青より柔らかく軽い印象で、気軽に記録するアプリに合う。プライマリー（key-900 = cyan-900）が、
+   * 背景（key-50）の上でも白の上でも文字の基準 4.5:1 を満たす（5.3:1、5.8:1）。赤・黄のように意味を持つ色相ではない。
+   *
+   * 注意: エラーと必須の赤（error-1、red-800）は、背景 key-50 の上では 4.19:1 で文字の基準を満たさない（白の上は 4.6:1）。
+   * 赤い文字が出うるもの（ErrorText、RequirementBadge、error の NotificationBanner）は、白い面（components/Panel.tsx）の中に置く
+   */
+  --color-key-50: var(--color-cyan-50);
+  --color-key-100: var(--color-cyan-100);
+  --color-key-200: var(--color-cyan-200);
+  --color-key-300: var(--color-cyan-300);
+  --color-key-400: var(--color-cyan-400);
+  --color-key-500: var(--color-cyan-500);
+  --color-key-600: var(--color-cyan-600);
+  --color-key-700: var(--color-cyan-700);
+  --color-key-800: var(--color-cyan-800);
+  --color-key-900: var(--color-cyan-900);
+  --color-key-1000: var(--color-cyan-1000);
+  --color-key-1100: var(--color-cyan-1100);
+  --color-key-1200: var(--color-cyan-1200);
 }
