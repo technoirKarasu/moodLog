@@ -27,6 +27,12 @@ resource "aws_cognito_user_pool" "main" {
   email_configuration {
     email_sending_account = "COGNITO_DEFAULT"
   }
+
+  # 誤って消したり作り直したりして、これまでの記録が見えなくならないようにする（Issue #86）。
+  # 作り直すと全員の sub が変わり、記録は users.cognito_sub でひもづけているため、同じアカウントでログインしても記録が見えなくなる。
+  # 削除保護を付けると、Terraform・コンソール・CLI のどこから消そうとしても AWS が拒む。
+  # 消すときの手順は infra/README.md の「データを持つリソースを消すとき・作り直すとき」
+  deletion_protection = "ACTIVE"
 }
 
 # マネージドログインのURLとして公開されるため、AWSアカウントIDではなくランダムな接尾辞で一意にする
