@@ -31,6 +31,7 @@ GoogleのリダイレクトURIには Cognito のドメインが要り、Cognito 
 main にマージすると、GitHub Actions（`.github/workflows/deploy.yml`）が下の手順を自動で流す（ADR 0012）。手元で流すのは、次のときだけ。
 
 - 自動のデプロイが、削除か作り直しを含む plan で止まったとき（`infra/scripts/check_plan.sh`）。手元で plan の中身を確かめてから apply する
+- 自動のデプロイが、apply の途中で切れたとき（ジョブのタイムアウトなど）。state のロックが残っていたら `terraform -chdir=infra force-unlock <ロックID>` で外してから流す
 - 初回の構築（上の「GoogleのOAuthクライアント」）
 
 手元で流すときは、リポジトリのルートで実行する。

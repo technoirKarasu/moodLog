@@ -3,7 +3,7 @@
 # Issue #76: 手元の手順（infra/README.md）と main マージ時のデプロイで、同じこのスクリプトを使う
 #
 # 使い方: リポジトリのどこからでも `backend/scripts/migrate_prod.sh` を実行する。
-# 前提: aws CLI が使え、moodlog-migrate を呼ぶ権限があること
+# 前提: aws CLI と jq が使え、moodlog-migrate を呼ぶ権限があること
 set -euo pipefail
 
 response_file="$(mktemp)"
@@ -18,8 +18,10 @@ metadata="$(aws lambda invoke \
 
 # 関数が失敗しても aws lambda invoke は終了コード0を返すため、FunctionError で判定する。
 # 失敗時の応答（errorMessage や stackTrace）には SQL 文やパラメータが入りうる。
-# GitHub Actions のログは公開されるため、出すのは例外の型だけにし、詳しくは CloudWatch Logs で見る
-if [[ "$(jq -r '.FunctionError // empty' <<<"${metadata}")" != "" ]]; then
+# GitHub Actions のログは公開されるため、出すのは例外の型だけにし、詳しくは CloudWatch Logs で見る。
+# 変数に受けてから比べる。[[ ]] の中のコマンド置換では、jq が失敗しても set -e が効かず、失敗を見落とすため
+function_error="$(jq -r '.FunctionError // empty' <<<"${metadata}")"
+if [[ -n "${function_error}" ]]; then
   echo "マイグレーションに失敗した: $(jq -r '.errorType // "不明"' "${response_file}")" >&2
   echo "詳しくは aws logs tail /aws/lambda/moodlog-migrate --since 1h で見る" >&2
   exit 1
