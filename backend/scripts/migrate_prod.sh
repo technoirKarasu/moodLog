@@ -16,12 +16,12 @@ metadata="$(aws lambda invoke \
   --output json \
   "${response_file}")"
 
-# 関数が失敗しても aws lambda invoke は終了コード0を返すため、FunctionError で判定する
+# 関数が失敗しても aws lambda invoke は終了コード0を返すため、FunctionError で判定する。
+# 失敗時の応答（errorMessage や stackTrace）には SQL 文やパラメータが入りうる。
+# GitHub Actions のログは公開されるため、出すのは例外の型だけにし、詳しくは CloudWatch Logs で見る
 if [[ "$(jq -r '.FunctionError // empty' <<<"${metadata}")" != "" ]]; then
-  echo "マイグレーションに失敗した:" >&2
-  cat "${response_file}" >&2
-  echo >&2
-  echo "alembic のログ: aws logs tail /aws/lambda/moodlog-migrate --since 1h" >&2
+  echo "マイグレーションに失敗した: $(jq -r '.errorType // "不明"' "${response_file}")" >&2
+  echo "詳しくは aws logs tail /aws/lambda/moodlog-migrate --since 1h で見る" >&2
   exit 1
 fi
 

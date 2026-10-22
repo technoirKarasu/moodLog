@@ -44,6 +44,8 @@ main にマージすると、GitHub Actions（`.github/workflows/deploy.yml`）�
 
 zip は、同じマシンで作れば毎回同じハッシュになる。ただし手元（macOS）と GitHub Actions（Ubuntu）では zip の版が違うため、ハッシュがそろわない。手元で apply したあとは、次の自動のデプロイで、3つのLambdaが同じコードのまま更新し直される。
 
+また、`backend/requirements.txt` で版を固定しているのは直接使うライブラリだけで、間接的に入るライブラリ（starlette、pydantic など）は、ビルドしたときの最新が入る。新しい版が出ると、コードを変えていなくてもハッシュが変わり、PR のテストを通していない版が本番に入りうる（すべての版を固定するのは Issue #84）。
+
 ### 自動のデプロイの準備（初回だけ）
 
 GitHub Actions に、次の値を登録する。`infra/terraform.tfvars` と同じ値を使う。
@@ -74,7 +76,7 @@ backend/scripts/migrate_prod.sh
 ```
 
 - 成功すると `{"revision": "<適用後のリビジョン>"}` を出し、終了コード0で終わる。head まで適用済みなら、何もせずに同じ値を返す
-- 失敗すると、Lambda が返した `errorMessage` を出し、終了コード1で終わる。`aws lambda invoke` は関数が失敗しても終了コード0を返すため、スクリプトの中でレスポンスの `FunctionError` を見て判定している
+- 失敗すると、例外の型（`errorType`）だけを出し、終了コード1で終わる。エラーの内容には SQL 文などが入りうるため、公開される GitHub Actions のログには出さない。詳しくは下の `aws logs tail` で見る。`aws lambda invoke` は関数が失敗しても終了コード0を返すため、スクリプトの中でレスポンスの `FunctionError` を見て判定している
 - `--cli-read-timeout 0` を付けて呼んでいる。既定の60秒で読み取りがタイムアウトすると、CLIが呼び直し、マイグレーションが2回流れうるため（Lambdaの同時実行も1つに絞っている）
 - alembic のログ（`Running upgrade ...`）は `aws logs tail /aws/lambda/moodlog-migrate --since 1h` で見られる
 - apply からマイグレーションを流すまでの間は、新しいコードが古いスキーマで動くため、APIがエラーを返しうる。マイグレーションは、古いコードでも動く形で書く（ADR 0012）

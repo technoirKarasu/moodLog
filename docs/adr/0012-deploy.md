@@ -24,10 +24,13 @@
 - **削除か作り直しを含む plan は、自動では apply しない。** `check_plan.sh` で止め、手元で plan を確かめてから apply する。RDS は削除保護がなく、最後のスナップショットも残さない設定なので、作り直されると記録が消えるため（削除保護は Issue #82）
 - **マイグレーションは、古いコードでも動く形で書く。** マイグレーションの Lambda も同じ apply で新しいコードになるため、マイグレーションは apply のあとにしか流せない。apply からマイグレーションまでの間は、新しいコードが古いスキーマで動く。そこで、列やテーブルの追加を先にマージしてデプロイし、使わなくなった列の削除は、コードが使わなくなってから別にマージする
 - zip は、同じマシンで作れば毎回同じハッシュになるようにする（更新時刻・パーミッション・並び順をそろえる）。コードが変わらないマージで、3つの Lambda が更新されないようにするため。手元（macOS）と GitHub Actions（Ubuntu）では zip の版が違い、ハッシュはそろわない。そろえるには手元でも Linux のコンテナでビルドする必要があり、手元で apply するのは削除や作り直しのときだけなので、そこまではしない。手元で apply したあとは、次の自動のデプロイで、3つの Lambda が同じコードのまま更新し直される
+  - ただし、`backend/requirements.txt` で版を固定しているのは直接使うライブラリだけ。間接的に入るライブラリは、ビルドしたときの最新が入る。新しい版が出ると、コードを変えていないマージでもハッシュが変わり、PR のテストを通していない版が人の目を通らずに本番に入りうる。すべての版を固定するのは Issue #84 で行う
 - 続けてマージしたときは、走っている apply を止めない（`concurrency` の `cancel-in-progress: false`）。待っている古い実行は取り消され、最新の main だけが次に流れる
 - 秘密情報の扱い（Actions のログは公開される）
   - Terraform の変数のうち公開しないもの（Budgets の通知先、Google のクライアントIDとシークレット）は、Actions の secret から `TF_VAR_*` で渡す。ロールの ARN は、アカウント ID をリポジトリに書かないよう、Actions の variable に入れる
   - plan の JSON と plan ファイルには、`sensitive` の値（DB のパスワードと接続文字列など）が平文で入る。これらは Actions の secret ではないので、GitHub のログのマスクも効かない。そのため、JSON は `jq` に渡すだけでログに出さず、止めたときに出すのは該当するリソースの `address` と `actions` だけにする。plan ファイルは artifact に上げない
+  - マイグレーションが失敗したときの Lambda の応答（`errorMessage` や `stackTrace`）には、SQL 文やパラメータが入りうる。`migrate_prod.sh` は例外の型（`errorType`）だけを出し、詳しくは CloudWatch Logs で見る
+  - Terraform に渡す secret は `terraform plan` のステップだけに渡し、ほかのステップ（`npm ci` のインストールスクリプトなど）からは見えないようにする。`npm ci` は AWS の認証の前に流す。フロントのビルド（`next build`）は Terraform の output を読むため、認証のあとに流す
   - plan と apply の画面出力では、Terraform が `sensitive` の値を伏せる。ARN に入るアカウント ID はログに出る（AWS はアカウント ID を秘密情報として扱っていない）
 - アクションの指定方法
   - `deploy.yml` は、コミットの SHA で固定する。AdministratorAccess のロールを引き受けるので、タグが付け替えられたときに、知らないコードが動かないようにする。更新は手で行う

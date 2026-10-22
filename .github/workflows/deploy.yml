@@ -25,11 +25,6 @@ jobs:
     runs-on: ubuntu-latest
     # RDS の変更は 10 分を超えることがある
     timeout-minutes: 30
-    env:
-      # 公開リポジトリに載せない値。手元では infra/terraform.tfvars で渡している
-      TF_VAR_budget_notification_email: ${{ secrets.TF_VAR_BUDGET_NOTIFICATION_EMAIL }}
-      TF_VAR_google_client_id: ${{ secrets.TF_VAR_GOOGLE_CLIENT_ID }}
-      TF_VAR_google_client_secret: ${{ secrets.TF_VAR_GOOGLE_CLIENT_SECRET }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -50,6 +45,9 @@ jobs:
           terraform_version: "1.16.2"
           terraform_wrapper: false
 
+      # 依存のインストールスクリプトに AWS の認証情報を見せないよう、認証の前に入れる
+      - run: npm ci --prefix frontend
+
       # ロールの ARN は、アカウント ID を公開リポジトリに書かないよう Actions の variable に入れている
       - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
@@ -62,6 +60,12 @@ jobs:
 
       # plan ファイルには sensitive の値が平文で入る。ログにも artifact にも出さない
       - run: terraform -chdir=infra plan -input=false -out=deploy.tfplan
+        env:
+          # 公開リポジトリに載せない値。手元では infra/terraform.tfvars で渡している。
+          # 変数は plan ファイルに入るので、apply には渡さなくてよい。ほかのステップに見せないよう、ここだけに置く
+          TF_VAR_budget_notification_email: ${{ secrets.TF_VAR_BUDGET_NOTIFICATION_EMAIL }}
+          TF_VAR_google_client_id: ${{ secrets.TF_VAR_GOOGLE_CLIENT_ID }}
+          TF_VAR_google_client_secret: ${{ secrets.TF_VAR_GOOGLE_CLIENT_SECRET }}
       - run: infra/scripts/check_plan.sh deploy.tfplan
       - run: terraform -chdir=infra apply -input=false deploy.tfplan
 
@@ -71,5 +75,4 @@ jobs:
       # Lambda の更新直後は失敗しうるので、何度か待つ。DB につながらないと 503 になる
       - run: curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 5 "$(terraform -chdir=infra output -raw api_endpoint)/health"
 
-      - run: npm ci --prefix frontend
       - run: frontend/scripts/deploy.sh
