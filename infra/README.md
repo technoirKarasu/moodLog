@@ -58,19 +58,27 @@ gh secret set TF_VAR_GOOGLE_CLIENT_ID
 gh secret set TF_VAR_GOOGLE_CLIENT_SECRET
 ```
 
-## DBを消すとき・作り直すとき
+## データを持つリソースを消すとき・作り直すとき
 
-RDS（`infra/db.tf`）は削除保護（`deletion_protection = true`）を付けており、Terraform からもコンソールや CLI からも消せない。消すときは、最後のスナップショット（`moodlog-final`）が残る（Issue #82）。
+次の2つは、消したり作り直したりするとデータが失われるので、削除保護を付けている。Terraform からもコンソールや CLI からも消せない。
+
+| リソース | 削除保護 | 消したときに残るもの | 作り直したときに起きること |
+| --- | --- | --- | --- |
+| RDS（`aws_db_instance.moodlog`、`infra/db.tf`。Issue #82） | `deletion_protection = true` | 最後のスナップショット（`moodlog-final`） | 空の DB になる。記録はスナップショットから戻す |
+| Cognito のユーザープール（`aws_cognito_user_pool.main`、`infra/auth.tf`。Issue #86） | `deletion_protection = "ACTIVE"` | 何も残らない | 全員の `sub` が変わる。記録は `users.cognito_sub` でひもづけているので、同じアカウントでログインしても、これまでの記録が見えなくなる。メールアドレスで登録したユーザーは登録し直しになる（Google でログインするユーザーは、ログインし直せば新しいユーザーとして作られる） |
+
+消すときも作り直すときも、手順は同じ。
 
 - 変更はすべて PR を通して main に入れる。手元だけでコードを書き換えて apply しない。次に別の PR をマージしたときに、自動のデプロイが main のコードで apply し直すため
-- `terraform destroy` は使わない。DB 以外のリソースも消えるため
+- `terraform destroy` は使わない。対象以外のリソースも消えるため
 
-1. 1本目の PR: `deletion_protection = false` にする。マージすると、自動のデプロイが設定の変更（in-place）として apply する
-2. 2本目の PR: DB を消す変更（`aws_db_instance.moodlog` をコードから消す）か、作り直しになる変更を入れる
-   - 作り直しの場合は、同じ PR で `deletion_protection = true` に戻してよい。消すのは古いインスタンスで、その時点では削除保護が外れているため
+1. 1本目の PR: 削除保護を外す（RDS は `deletion_protection = false`、ユーザープールは `deletion_protection = "INACTIVE"`）。マージすると、自動のデプロイが設定の変更（in-place）として apply する
+2. 2本目の PR: 消す変更（リソースをコードから消す）か、作り直しになる変更を入れる。ユーザープールでは、`username_attributes` など、あとから変えられない設定を変えると作り直しになる
+   - 作り直しの場合は、同じ PR で削除保護を元に戻してよい。消すのは古いリソースで、その時点では削除保護が外れているため
    - マージすると、自動のデプロイは `infra/scripts/check_plan.sh` で止まる。手元で `terraform -chdir=infra plan` を確かめてから `apply` する
-3. DB を残さない場合は、コードから消す（2本目の PR）まで済ませる。コードに残したまま手元で消すと、次の自動のデプロイが空の DB を作り直す（`check_plan.sh` が止めるのは削除と作り直しだけで、作成は止めない）
-4. `moodlog-final` という名前のスナップショットが残っていると、次に消すときに失敗する。いらなければ、先に消しておく（`aws rds delete-db-snapshot --db-snapshot-identifier moodlog-final`）
+3. 手元で apply したあと、残りの「デプロイ」の手順（マイグレーション、`/health` の確認、フロントの配置）を流す。ユーザープールを作り直したときは、クライアントIDとトークンの Issuer が変わるので、フロントの配置（`frontend/scripts/deploy.sh`）を必ず流す。マネージドログインのドメインは `random_string` の接尾辞で決まり変わらないので、Google の OAuth クライアントのリダイレクトURIは登録し直さなくてよい
+4. 残さない場合は、コードから消す（2本目の PR）まで済ませる。コードに残したまま手元で消すと、次の自動のデプロイが空のリソースを作り直す（`check_plan.sh` が止めるのは削除と作り直しだけで、作成は止めない）
+5. RDS では、`moodlog-final` という名前のスナップショットが残っていると、次に消すときに失敗する。いらなければ、先に消しておく（`aws rds delete-db-snapshot --db-snapshot-identifier moodlog-final`）
 
 ## 週報生成バッチの動作確認
 

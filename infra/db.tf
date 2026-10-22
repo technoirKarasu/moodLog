@@ -62,7 +62,7 @@ resource "aws_db_instance" "moodlog" {
 
   # 誤って消したり作り直したりして、記録を失わないようにする（Issue #82）。
   # 削除保護を付けると、Terraform・コンソール・CLI のどこから消そうとしても AWS が拒む。
-  # 消すときの手順は infra/README.md の「DBを消すとき・作り直すとき」
+  # 消すときの手順は infra/README.md の「データを持つリソースを消すとき・作り直すとき」
   deletion_protection = true
   # 削除保護を外して消したときも、最後のスナップショットを残す。
   # 名前に日時を入れると plan のたびに差分が出るため、固定にする
