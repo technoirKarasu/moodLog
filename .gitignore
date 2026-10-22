@@ -22,6 +22,8 @@ yarn-error.log*
 .terraform/
 *.tfstate
 *.tfstate.*
+# plan ファイルには sensitive の値が平文で入る（infra/scripts/check_plan.sh）
+*.tfplan
 crash.log
 crash.*.log
 *.tfvars

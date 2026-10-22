@@ -32,6 +32,13 @@ cp -R "${backend_dir}/migrations" "${package_dir}/migrations"
 cp "${backend_dir}/alembic.ini" "${package_dir}/alembic.ini"
 find "${package_dir}" -name "__pycache__" -type d -prune -exec rm -rf {} +
 
-(cd "${package_dir}" && zip -q -r "${build_dir}/lambda.zip" .)
+# コードが同じなら、毎回同じハッシュのzipにする（Issue #76）。
+# ハッシュが変わると、main マージ時のデプロイのたびに3つのLambdaが更新されるため。
+# 更新時刻・パーミッション（umaskで変わらないよう、実行権限の有無だけを残す）・並び順をそろえ、
+# zip固有の追加の属性を入れない（-X）。
+# 手元（macOS）と CI（Ubuntu）では zip の版が違うため、同じハッシュにはならない（docs/adr/0012-deploy.md）
+find "${package_dir}" -exec touch -h -t 198001010000 {} +
+chmod -R u=rwX,go=rX "${package_dir}"
+(cd "${package_dir}" && find . -mindepth 1 | LC_ALL=C sort | zip -q -X -@ "${build_dir}/lambda.zip")
 
 echo "${build_dir}/lambda.zip"

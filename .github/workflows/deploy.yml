@@ -1,0 +1,78 @@
+# main へのマージで本番へデプロイする（docs/adr/0012-deploy.md）。
+# Issue #76: 手順は infra/README.md の「デプロイ」と同じで、同じスクリプトを使う
+#
+# OIDC で moodlog-github-actions ロールを引き受ける。このロールは AdministratorAccess を持つため（ADR 0006、#83 で絞る）、
+# アクションはコミットの SHA で固定する。更新するときは、リリースのタグが指す SHA に書き換える
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write # OIDC のトークンを受け取るため
+  contents: read
+
+# 走っている apply は途中で止めない（state が中途半端になるため）。
+# 続けてマージしたときは、待っている古い実行が取り消され、最新の main だけが次に流れる
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # RDS の変更は 10 分を超えることがある
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # build_lambda.sh が使う python3（ci.yml と同じ）
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # wrapper を入れない。frontend/scripts/deploy.sh が $(terraform output -raw ...) で値を読むため
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: "1.16.2"
+          terraform_wrapper: false
+
+      # 依存のインストールスクリプトに AWS の認証情報を見せないよう、認証の前に入れる
+      - run: npm ci --prefix frontend
+
+      # ロールの ARN は、アカウント ID を公開リポジトリに書かないよう Actions の variable に入れている
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ap-northeast-1
+
+      - run: backend/scripts/build_lambda.sh
+
+      - run: terraform -chdir=infra init -lockfile=readonly -input=false
+
+      # plan ファイルには sensitive の値が平文で入る。ログにも artifact にも出さない
+      - run: terraform -chdir=infra plan -input=false -out=deploy.tfplan
+        env:
+          # 公開リポジトリに載せない値。手元では infra/terraform.tfvars で渡している。
+          # 変数は plan ファイルに入るので、apply には渡さなくてよい。ほかのステップに見せないよう、ここだけに置く
+          TF_VAR_budget_notification_email: ${{ secrets.TF_VAR_BUDGET_NOTIFICATION_EMAIL }}
+          TF_VAR_google_client_id: ${{ secrets.TF_VAR_GOOGLE_CLIENT_ID }}
+          TF_VAR_google_client_secret: ${{ secrets.TF_VAR_GOOGLE_CLIENT_SECRET }}
+      - run: infra/scripts/check_plan.sh deploy.tfplan
+      - run: terraform -chdir=infra apply -input=false deploy.tfplan
+
+      # apply からここまでの間は、新しいコードが古いスキーマで動く（ADR 0012）
+      - run: backend/scripts/migrate_prod.sh
+
+      # Lambda の更新直後は失敗しうるので、何度か待つ。DB につながらないと 503 になる
+      - run: curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 5 "$(terraform -chdir=infra output -raw api_endpoint)/health"
+
+      - run: frontend/scripts/deploy.sh
