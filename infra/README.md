@@ -65,7 +65,7 @@ gh secret set TF_VAR_GOOGLE_CLIENT_SECRET
 | リソース | 削除保護 | 消したときに残るもの | 作り直したときに起きること |
 | --- | --- | --- | --- |
 | RDS（`aws_db_instance.moodlog`、`infra/db.tf`。Issue #82） | `deletion_protection = true` | 最後のスナップショット（`moodlog-final`） | 空の DB になる。記録はスナップショットから戻す |
-| Cognito のユーザープール（`aws_cognito_user_pool.main`、`infra/auth.tf`。Issue #86） | `deletion_protection = "ACTIVE"` | 何も残らない | 全員の `sub` が変わる。記録は `users.cognito_sub` でひもづけているので、同じアカウントでログインしても、これまでの記録が見えなくなる。ユーザーは登録し直しになる |
+| Cognito のユーザープール（`aws_cognito_user_pool.main`、`infra/auth.tf`。Issue #86） | `deletion_protection = "ACTIVE"` | 何も残らない | 全員の `sub` が変わる。記録は `users.cognito_sub` でひもづけているので、同じアカウントでログインしても、これまでの記録が見えなくなる。メールアドレスで登録したユーザーは登録し直しになる（Google でログインするユーザーは、ログインし直せば新しいユーザーとして作られる） |
 
 消すときも作り直すときも、手順は同じ。
 
