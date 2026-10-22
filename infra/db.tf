@@ -61,7 +61,7 @@ resource "aws_db_instance" "moodlog" {
   backup_retention_period = 1
 
   # 誤って消したり作り直したりして、記録を失わないようにする（Issue #82）。
-  # 削除保護は、Terraform からもコンソールや CLI からの削除も AWS が拒む。
+  # 削除保護を付けると、Terraform・コンソール・CLI のどこから消そうとしても AWS が拒む。
   # 消すときの手順は infra/README.md の「DBを消すとき・作り直すとき」
   deletion_protection = true
   # 削除保護を外して消したときも、最後のスナップショットを残す。
