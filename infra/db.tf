@@ -59,8 +59,15 @@ resource "aws_db_instance" "moodlog" {
   multi_az               = false
 
   backup_retention_period = 1
-  skip_final_snapshot     = true
-  deletion_protection     = false
+
+  # 誤って消したり作り直したりして、記録を失わないようにする（Issue #82）。
+  # 削除保護は、Terraform からもコンソールや CLI からの削除も AWS が拒む。
+  # 消すときの手順は infra/README.md の「DBを消すとき・作り直すとき」
+  deletion_protection = true
+  # 削除保護を外して消したときも、最後のスナップショットを残す。
+  # 名前に日時を入れると plan のたびに差分が出るため、固定にする
+  skip_final_snapshot       = false
+  final_snapshot_identifier = "moodlog-final"
 }
 
 resource "aws_ssm_parameter" "database_url" {

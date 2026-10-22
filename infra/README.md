@@ -58,6 +58,20 @@ gh secret set TF_VAR_GOOGLE_CLIENT_ID
 gh secret set TF_VAR_GOOGLE_CLIENT_SECRET
 ```
 
+## DBを消すとき・作り直すとき
+
+RDS（`infra/db.tf`）は削除保護（`deletion_protection = true`）を付けており、Terraform からもコンソールや CLI からも消せない。消すときは、最後のスナップショット（`moodlog-final`）が残る（Issue #82）。
+
+- 変更はすべて PR を通して main に入れる。手元だけでコードを書き換えて apply しない。次に別の PR をマージしたときに、自動のデプロイが main のコードで apply し直すため
+- `terraform destroy` は使わない。DB 以外のリソースも消えるため
+
+1. 1本目の PR: `deletion_protection = false` にする。マージすると、自動のデプロイが設定の変更（in-place）として apply する
+2. 2本目の PR: DB を消す変更（`aws_db_instance.moodlog` をコードから消す）か、作り直しになる変更を入れる
+   - 作り直しの場合は、同じ PR で `deletion_protection = true` に戻してよい。消すのは古いインスタンスで、その時点では削除保護が外れているため
+   - マージすると、自動のデプロイは `infra/scripts/check_plan.sh` で止まる。手元で `terraform -chdir=infra plan` を確かめてから `apply` する
+3. DB を残さない場合は、コードから消す（2本目の PR）まで済ませる。コードに残したまま手元で消すと、次の自動のデプロイが空の DB を作り直す（`check_plan.sh` が止めるのは削除と作り直しだけで、作成は止めない）
+4. `moodlog-final` という名前のスナップショットが残っていると、次に消すときに失敗する。いらなければ、先に消しておく（`aws rds delete-db-snapshot --db-snapshot-identifier moodlog-final`）
+
 ## 週報生成バッチの動作確認
 
 週報生成バッチ（`infra/batch.tf`）は毎週金曜 18:00 にしか起動しないため、動作を確かめるときだけ5分ごとにする。
