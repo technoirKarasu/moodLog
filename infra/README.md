@@ -12,6 +12,27 @@ google_client_id          = "GoogleのOAuthクライアントID"
 google_client_secret      = "GoogleのOAuthクライアントシークレット"
 ```
 
+### tfstate のバケット（初回だけ）
+
+state は S3 のバケット `moodlog-tfstate-96-tokyo`（ap-northeast-1）に置く（`infra/main.tf`）。state を置くバケットを同じ state で管理すると、バケットより先に state を置けないため、このバケットだけは Terraform の管理外で、AWS CLI で作る（Issue #25）。
+
+```sh
+B=moodlog-tfstate-96-tokyo
+R=ap-northeast-1
+# 東京などus-east-1以外では、LocationConstraint の指定が要る
+aws s3api create-bucket --bucket $B --region $R \
+  --create-bucket-configuration LocationConstraint=$R --object-ownership BucketOwnerEnforced
+aws s3api put-public-access-block --bucket $B \
+  --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+aws s3api put-bucket-encryption --bucket $B \
+  --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"},"BucketKeyEnabled":true}]}'
+# state を壊したり消したりしたときに、前の版へ戻せるようにする
+aws s3api put-bucket-versioning --bucket $B --versioning-configuration Status=Enabled
+```
+
+- state には DB のパスワードなどが平文で入る。バケットは暗号化し、公開をすべてブロックしている
+- 前の版の state は `aws s3api list-object-versions --bucket $B --prefix moodlog/terraform.tfstate` で見られる。戻すときは、その版を `aws s3api get-object --version-id` で取り出し、`terraform -chdir=infra state push` で書き戻す
+
 ### GoogleのOAuthクライアント（初回だけ）
 
 Googleでのログイン（`infra/auth.tf`）には、Google Cloud Console で作る OAuth クライアントが要る。

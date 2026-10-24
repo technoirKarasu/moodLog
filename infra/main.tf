@@ -1,8 +1,8 @@
 terraform {
   backend "s3" {
-    bucket       = "moodlog-tfstate-96"
+    bucket       = "moodlog-tfstate-96-tokyo"
     key          = "moodlog/terraform.tfstate"
-    region       = "ap-southeast-2"
+    region       = "ap-northeast-1"
     encrypt      = true
     use_lockfile = true
   }
