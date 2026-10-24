@@ -30,8 +30,24 @@ aws s3api put-bucket-encryption --bucket $B \
 aws s3api put-bucket-versioning --bucket $B --versioning-configuration Status=Enabled
 ```
 
-- state には DB のパスワードなどが平文で入る。バケットは暗号化し、公開をすべてブロックしている
-- 前の版の state は `aws s3api list-object-versions --bucket $B --prefix moodlog/terraform.tfstate` で見られる。戻すときは、その版を `aws s3api get-object --version-id` で取り出し、`terraform -chdir=infra state push` で書き戻す
+state には DB のパスワードなどが平文で入るので、作ったあとで設定が入ったことを確かめる。
+
+```sh
+aws s3api get-bucket-versioning --bucket $B          # Status: Enabled
+aws s3api get-bucket-encryption --bucket $B          # SSEAlgorithm: AES256、BucketKeyEnabled: true
+aws s3api get-public-access-block --bucket $B        # 4つとも true
+aws s3api get-bucket-ownership-controls --bucket $B  # ObjectOwnership: BucketOwnerEnforced
+```
+
+前の版の state へ戻すときは、S3 の中で前の版をコピーし直す。手元に state のファイルを落とさないため（`terraform state push` は、今の版より古い state を `-force` なしでは受け付けない）。
+
+```sh
+# 版の一覧（新しい順）。戻したい版の VersionId を選ぶ
+aws s3api list-object-versions --bucket $B --prefix moodlog/terraform.tfstate \
+  --query 'Versions[?Key==`moodlog/terraform.tfstate`].[VersionId,LastModified]' --output text
+aws s3api copy-object --bucket $B --key moodlog/terraform.tfstate \
+  --copy-source "$B/moodlog/terraform.tfstate?versionId=<戻したい版のVersionId>"
+```
 
 ### GoogleのOAuthクライアント（初回だけ）
 
