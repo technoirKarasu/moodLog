@@ -33,13 +33,14 @@ aws s3api put-bucket-versioning --bucket $B --versioning-configuration Status=En
 state には DB のパスワードなどが平文で入るので、作ったあとで設定が入ったことを確かめる。
 
 ```sh
+aws s3api get-bucket-location --bucket $B            # LocationConstraint: ap-northeast-1
 aws s3api get-bucket-versioning --bucket $B          # Status: Enabled
 aws s3api get-bucket-encryption --bucket $B          # SSEAlgorithm: AES256、BucketKeyEnabled: true
 aws s3api get-public-access-block --bucket $B        # 4つとも true
 aws s3api get-bucket-ownership-controls --bucket $B  # ObjectOwnership: BucketOwnerEnforced
 ```
 
-前の版の state へ戻すときは、S3 の中で前の版をコピーし直す。手元に state のファイルを落とさないため（`terraform state push` は、今の版より古い state を `-force` なしでは受け付けない）。
+前の版の state へ戻すときは、S3 の中で前の版をコピーし直す。手元に state のファイルを落とさないため（`terraform state push` は、今の版より古い state を `-force` なしでは受け付けない）。戻す前に、手元でも GitHub Actions でも plan や apply が走っていないこと（`moodlog/terraform.tfstate.tflock` がないこと）を確かめる。
 
 ```sh
 # 版の一覧（新しい順）。戻したい版の VersionId を選ぶ
