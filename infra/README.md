@@ -12,6 +12,44 @@ google_client_id          = "GoogleのOAuthクライアントID"
 google_client_secret      = "GoogleのOAuthクライアントシークレット"
 ```
 
+### tfstate のバケット（初回だけ）
+
+state は S3 のバケット `moodlog-tfstate-96-tokyo`（ap-northeast-1）に置く（`infra/main.tf`）。state を置くバケットを同じ state で管理すると、バケットより先に state を置けないため、このバケットだけは Terraform の管理外で、AWS CLI で作る（Issue #25）。
+
+```sh
+B=moodlog-tfstate-96-tokyo
+R=ap-northeast-1
+# 東京などus-east-1以外では、LocationConstraint の指定が要る
+aws s3api create-bucket --bucket $B --region $R \
+  --create-bucket-configuration LocationConstraint=$R --object-ownership BucketOwnerEnforced
+aws s3api put-public-access-block --bucket $B \
+  --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+aws s3api put-bucket-encryption --bucket $B \
+  --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"},"BucketKeyEnabled":true}]}'
+# state を壊したり消したりしたときに、前の版へ戻せるようにする
+aws s3api put-bucket-versioning --bucket $B --versioning-configuration Status=Enabled
+```
+
+state には DB のパスワードなどが平文で入るので、作ったあとで設定が入ったことを確かめる。
+
+```sh
+aws s3api get-bucket-location --bucket $B            # LocationConstraint: ap-northeast-1
+aws s3api get-bucket-versioning --bucket $B          # Status: Enabled
+aws s3api get-bucket-encryption --bucket $B          # SSEAlgorithm: AES256、BucketKeyEnabled: true
+aws s3api get-public-access-block --bucket $B        # 4つとも true
+aws s3api get-bucket-ownership-controls --bucket $B  # ObjectOwnership: BucketOwnerEnforced
+```
+
+前の版の state へ戻すときは、S3 の中で前の版をコピーし直す。手元に state のファイルを落とさないため（`terraform state push` は、今の版より古い state を `-force` なしでは受け付けない）。戻す前に、手元でも GitHub Actions でも plan や apply が走っていないこと（`moodlog/terraform.tfstate.tflock` がないこと）を確かめる。
+
+```sh
+# 版の一覧（新しい順）。戻したい版の VersionId を選ぶ
+aws s3api list-object-versions --bucket $B --prefix moodlog/terraform.tfstate \
+  --query 'Versions[?Key==`moodlog/terraform.tfstate`].[VersionId,LastModified]' --output text
+aws s3api copy-object --bucket $B --key moodlog/terraform.tfstate \
+  --copy-source "$B/moodlog/terraform.tfstate?versionId=<戻したい版のVersionId>"
+```
+
 ### GoogleのOAuthクライアント（初回だけ）
 
 Googleでのログイン（`infra/auth.tf`）には、Google Cloud Console で作る OAuth クライアントが要る。
