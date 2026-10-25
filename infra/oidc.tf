@@ -44,7 +44,7 @@ resource "aws_iam_role" "github_actions" {
 
 # デプロイ（docs/adr/0012-deploy.md）に必要な権限だけを持たせる（docs/adr/0013-github-actions-deploy-policy.md）。
 # Issue #83: AdministratorAccess から付け替えた。
-# マネージドポリシーは 6,144 文字まで。1つにまとめると上限に近く、すぐに超えるので、読み取りと書き込みで分ける。
+# マネージドポリシーは 6,144 文字まで。1つにまとめると超える（約 6,700 文字）ので、読み取りと書き込みで分ける。
 # 書き込みも上限に近い（約5,000文字）。超えるときは、サービスごとに3つ目のポリシーへ移す
 #
 # 読み取りは、terraform plan の refresh が属性を広く読むため、サービスごとのワイルドカードにする。
