@@ -115,11 +115,13 @@ resource "aws_iam_policy" "github_actions_read" {
         Resource = aws_ssm_parameter.database_url.arn
       },
       {
-        # バケットの設定。オブジェクトは含まない
+        # バケットの設定。オブジェクトは含まない。
+        # ListTagsForResource は、プロバイダがバケットのタグを読むときに使う（Issue #93）。名前が List で始まり、Get* に入らない
         Effect = "Allow"
         Action = [
           "s3:Get*",
           "s3:ListBucket",
+          "s3:ListTagsForResource",
         ]
         Resource = [
           "arn:aws:s3:::moodlog-tfstate-96-tokyo",
