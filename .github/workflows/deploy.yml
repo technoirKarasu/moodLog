@@ -1,7 +1,7 @@
 # main へのマージで本番へデプロイする（docs/adr/0012-deploy.md）。
 # Issue #76: 手順は infra/README.md の「デプロイ」と同じで、同じスクリプトを使う
 #
-# OIDC で moodlog-github-actions ロールを引き受ける。このロールは AdministratorAccess を持つため（ADR 0006、#83 で絞る）、
+# OIDC で moodlog-github-actions ロールを引き受ける。このロールは本番を書き換えられるため（ADR 0013）、
 # アクションはコミットの SHA で固定する。更新するときは、リリースのタグが指す SHA に書き換える
 
 name: Deploy

@@ -42,8 +42,280 @@ resource "aws_iam_role" "github_actions" {
   })
 }
 
-# 初期段階のためAdministratorAccessを付与。将来的にデプロイに必要な範囲へ絞ることを検討
-resource "aws_iam_role_policy_attachment" "github_actions_admin" {
+# デプロイ（docs/adr/0012-deploy.md）に必要な権限だけを持たせる（docs/adr/0013-github-actions-deploy-policy.md）。
+# Issue #83: AdministratorAccess から付け替えた。
+# マネージドポリシーは 6,144 文字まで。1つにまとめると上限に近く、すぐに超えるので、読み取りと書き込みで分ける
+#
+# 読み取りは、terraform plan の refresh が属性を広く読むため、サービスごとのワイルドカードにする。
+# ただし、中身のデータを返す読み取り（S3 のオブジェクト、SSM の値、Cognito の利用者）は moodlog のものに絞る
+resource "aws_iam_policy" "github_actions_read" {
+  name        = "moodlog-github-actions-read"
+  description = "terraform plan で、管理しているリソースを読む"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "apigateway:GET",
+          "budgets:ViewBudget",
+          "budgets:ListTagsForResource",
+          "cloudfront:Get*",
+          "cloudfront:List*",
+          # 対象をユーザープールに絞れない
+          "cognito-idp:DescribeUserPoolDomain",
+          "ec2:Describe*",
+          "iam:Get*",
+          "iam:List*",
+          "lambda:Get*",
+          "lambda:List*",
+          "logs:Describe*",
+          "logs:List*",
+          "rds:Describe*",
+          "rds:List*",
+          "scheduler:Get*",
+          "scheduler:List*",
+          "sqs:GetQueueAttributes",
+          "sqs:GetQueueUrl",
+          "sqs:ListQueueTags",
+          "ssm:DescribeParameters",
+        ]
+        Resource = "*"
+      },
+      {
+        # ListUsers や Admin* は利用者の情報を返すので含めない
+        Effect = "Allow"
+        Action = [
+          "cognito-idp:Describe*",
+          "cognito-idp:GetUserPoolMfaConfig",
+          "cognito-idp:ListUserPoolClients",
+          "cognito-idp:ListTagsForResource",
+        ]
+        Resource = aws_cognito_user_pool.main.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameter",
+          "ssm:GetParameters",
+          "ssm:ListTagsForResource",
+        ]
+        Resource = aws_ssm_parameter.database_url.arn
+      },
+      {
+        # バケットの設定。オブジェクトは含まない
+        Effect = "Allow"
+        Action = [
+          "s3:Get*",
+          "s3:ListBucket",
+        ]
+        Resource = [
+          "arn:aws:s3:::moodlog-tfstate-96-tokyo",
+          aws_s3_bucket.frontend.arn,
+        ]
+      },
+    ]
+  })
+}
+
+# 書き込みは、既存のリソースの更新だけを許す。作成・削除・作り直しと IAM の変更は、
+# infra/scripts/check_plan.sh で止めて手元で apply するので、ここには含めない。
+# 名前に Delete を含む操作は、リソースを消さず、更新の中で属性を外すものだけを許す
+resource "aws_iam_policy" "github_actions_deploy" {
+  name        = "moodlog-github-actions-deploy"
+  description = "main マージ時のデプロイで、既存のリソースを更新する"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["s3:GetObject", "s3:PutObject"]
+        Resource = "arn:aws:s3:::moodlog-tfstate-96-tokyo/moodlog/terraform.tfstate*"
+      },
+      {
+        # use_lockfile のロックは、apply が終わると消す
+        Effect   = "Allow"
+        Action   = "s3:DeleteObject"
+        Resource = "arn:aws:s3:::moodlog-tfstate-96-tokyo/moodlog/terraform.tfstate.tflock"
+      },
+      {
+        # frontend/scripts/deploy.sh の aws s3 sync --delete
+        Effect   = "Allow"
+        Action   = ["s3:PutObject", "s3:DeleteObject"]
+        Resource = "${aws_s3_bucket.frontend.arn}/*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["s3:PutBucketPolicy", "s3:PutBucketPublicAccessBlock"]
+        Resource = aws_s3_bucket.frontend.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "lambda:UpdateFunctionCode",
+          "lambda:UpdateFunctionConfiguration",
+          "lambda:PutFunctionConcurrency",
+          "lambda:DeleteFunctionConcurrency",
+        ]
+        Resource = [
+          aws_lambda_function.api.arn,
+          aws_lambda_function.migrate.arn,
+          aws_lambda_function.weekly_summary.arn,
+        ]
+      },
+      {
+        Effect   = "Allow"
+        Action   = "lambda:UpdateEventSourceMapping"
+        Resource = aws_lambda_event_source_mapping.weekly_summary.arn
+      },
+      {
+        # backend/scripts/migrate_prod.sh
+        Effect   = "Allow"
+        Action   = "lambda:InvokeFunction"
+        Resource = aws_lambda_function.migrate.arn
+      },
+      {
+        Effect = "Allow"
+        Action = "iam:PassRole"
+        Resource = [
+          aws_iam_role.lambda.arn,
+          aws_iam_role.migrate.arn,
+          aws_iam_role.weekly_summary.arn,
+        ]
+        Condition = {
+          StringEquals = { "iam:PassedToService" = "lambda.amazonaws.com" }
+        }
+      },
+      {
+        Effect   = "Allow"
+        Action   = "iam:PassRole"
+        Resource = aws_iam_role.weekly_summary_scheduler.arn
+        Condition = {
+          StringEquals = { "iam:PassedToService" = "scheduler.amazonaws.com" }
+        }
+      },
+      {
+        Effect = "Allow"
+        Action = "apigateway:PATCH"
+        Resource = [
+          "arn:aws:apigateway:ap-northeast-1::/apis/${aws_apigatewayv2_api.api.id}",
+          "arn:aws:apigateway:ap-northeast-1::/apis/${aws_apigatewayv2_api.api.id}/*",
+        ]
+      },
+      {
+        # cors_configuration を外すとき
+        Effect   = "Allow"
+        Action   = "apigateway:DELETE"
+        Resource = "arn:aws:apigateway:ap-northeast-1::/apis/${aws_apigatewayv2_api.api.id}/cors"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "cognito-idp:UpdateUserPool",
+          "cognito-idp:UpdateUserPoolClient",
+          "cognito-idp:UpdateIdentityProvider",
+          "cognito-idp:UpdateUserPoolDomain",
+          "cognito-idp:UpdateManagedLoginBranding",
+          "cognito-idp:SetUserPoolMfaConfig",
+        ]
+        Resource = aws_cognito_user_pool.main.arn
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["cloudfront:UpdateDistribution", "cloudfront:CreateInvalidation"]
+        Resource = aws_cloudfront_distribution.frontend.arn
+      },
+      {
+        Effect   = "Allow"
+        Action   = "cloudfront:UpdateOriginAccessControl"
+        Resource = aws_cloudfront_origin_access_control.frontend.arn
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["ec2:ModifyVpcAttribute", "ec2:CreateTags", "ec2:DeleteTags"]
+        Resource = aws_vpc.main.arn
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["ec2:ModifySubnetAttribute", "ec2:CreateTags", "ec2:DeleteTags"]
+        Resource = [aws_subnet.private_a.arn, aws_subnet.private_c.arn]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:AuthorizeSecurityGroupIngress",
+          "ec2:AuthorizeSecurityGroupEgress",
+          "ec2:RevokeSecurityGroupIngress",
+          "ec2:RevokeSecurityGroupEgress",
+          "ec2:UpdateSecurityGroupRuleDescriptionsIngress",
+          "ec2:UpdateSecurityGroupRuleDescriptionsEgress",
+          "ec2:CreateTags",
+          "ec2:DeleteTags",
+        ]
+        Resource = [
+          aws_security_group.db.arn,
+          aws_security_group.lambda.arn,
+          aws_security_group.migrate.arn,
+        ]
+      },
+      {
+        # 変更する内容によっては、つないでいるサブネットグループ・パラメータグループ・オプショングループの ARN でも判定される。
+        # パラメータグループとオプショングループは既定のもの（変更できない）
+        Effect = "Allow"
+        Action = "rds:ModifyDBInstance"
+        Resource = [
+          aws_db_instance.moodlog.arn,
+          aws_db_subnet_group.moodlog.arn,
+          "arn:aws:rds:ap-northeast-1:${data.aws_caller_identity.current.account_id}:pg:default.postgres16",
+          "arn:aws:rds:ap-northeast-1:${data.aws_caller_identity.current.account_id}:og:default:postgres-16",
+        ]
+      },
+      {
+        Effect   = "Allow"
+        Action   = "rds:ModifyDBSubnetGroup"
+        Resource = aws_db_subnet_group.moodlog.arn
+      },
+      {
+        Effect = "Allow"
+        Action = ["logs:PutRetentionPolicy", "logs:DeleteRetentionPolicy"]
+        Resource = [
+          aws_cloudwatch_log_group.lambda.arn,
+          aws_cloudwatch_log_group.migrate.arn,
+          aws_cloudwatch_log_group.weekly_summary.arn,
+        ]
+      },
+      {
+        Effect   = "Allow"
+        Action   = "sqs:SetQueueAttributes"
+        Resource = [aws_sqs_queue.weekly_summary.arn, aws_sqs_queue.weekly_summary_dlq.arn]
+      },
+      {
+        Effect   = "Allow"
+        Action   = "ssm:PutParameter"
+        Resource = aws_ssm_parameter.database_url.arn
+      },
+      {
+        Effect   = "Allow"
+        Action   = "scheduler:UpdateSchedule"
+        Resource = aws_scheduler_schedule.weekly_summary.arn
+      },
+      {
+        Effect   = "Allow"
+        Action   = "budgets:ModifyBudget"
+        Resource = aws_budgets_budget.monthly.arn
+      },
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "github_actions_read" {
   role       = aws_iam_role.github_actions.name
-  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+  policy_arn = aws_iam_policy.github_actions_read.arn
+}
+
+resource "aws_iam_role_policy_attachment" "github_actions_deploy" {
+  role       = aws_iam_role.github_actions.name
+  policy_arn = aws_iam_policy.github_actions_deploy.arn
 }
