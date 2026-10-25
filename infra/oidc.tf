@@ -44,7 +44,8 @@ resource "aws_iam_role" "github_actions" {
 
 # デプロイ（docs/adr/0012-deploy.md）に必要な権限だけを持たせる（docs/adr/0013-github-actions-deploy-policy.md）。
 # Issue #83: AdministratorAccess から付け替えた。
-# マネージドポリシーは 6,144 文字まで。1つにまとめると上限に近く、すぐに超えるので、読み取りと書き込みで分ける
+# マネージドポリシーは 6,144 文字まで。1つにまとめると上限に近く、すぐに超えるので、読み取りと書き込みで分ける。
+# 書き込みも上限に近い（約5,000文字）。超えるときは、サービスごとに3つ目のポリシーへ移す
 #
 # 読み取りは、terraform plan の refresh が属性を広く読むため、サービスごとのワイルドカードにする。
 # ただし、中身のデータを返す読み取り（S3 のオブジェクト、SSM の値、Cognito の利用者）は moodlog のものに絞る
@@ -68,7 +69,6 @@ resource "aws_iam_policy" "github_actions_read" {
           "ec2:Describe*",
           "iam:Get*",
           "iam:List*",
-          "lambda:Get*",
           "lambda:List*",
           "logs:Describe*",
           "logs:List*",
@@ -82,6 +82,17 @@ resource "aws_iam_policy" "github_actions_read" {
           "ssm:DescribeParameters",
         ]
         Resource = "*"
+      },
+      {
+        # GetFunction はコードのダウンロード URL と環境変数を返すので、moodlog の関数に絞る
+        Effect = "Allow"
+        Action = "lambda:Get*"
+        Resource = [
+          aws_lambda_function.api.arn,
+          aws_lambda_function.migrate.arn,
+          aws_lambda_function.weekly_summary.arn,
+          aws_lambda_event_source_mapping.weekly_summary.arn,
+        ]
       },
       {
         # ListUsers や Admin* は利用者の情報を返すので含めない
@@ -280,10 +291,14 @@ resource "aws_iam_policy" "github_actions_deploy" {
       {
         Effect = "Allow"
         Action = ["logs:PutRetentionPolicy", "logs:DeleteRetentionPolicy"]
+        # 操作によっては、末尾に :* が付いた ARN で判定される。provider の arn には付いていないので、両方を書く
         Resource = [
           aws_cloudwatch_log_group.lambda.arn,
+          "${aws_cloudwatch_log_group.lambda.arn}:*",
           aws_cloudwatch_log_group.migrate.arn,
+          "${aws_cloudwatch_log_group.migrate.arn}:*",
           aws_cloudwatch_log_group.weekly_summary.arn,
+          "${aws_cloudwatch_log_group.weekly_summary.arn}:*",
         ]
       },
       {
