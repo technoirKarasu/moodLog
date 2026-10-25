@@ -50,3 +50,5 @@
 ## 結果
 
 `.github/workflows/deploy.yml`、`infra/scripts/check_plan.sh`、`backend/scripts/migrate_prod.sh` を追加し、`backend/scripts/build_lambda.sh` で zip のハッシュをそろえた（Issue #76）。ロールの権限は AdministratorAccess のまま。Issue #83 で、このデプロイに必要な範囲に絞る。
+
+Issue #83 で、ロールの権限を既存のリソースの更新だけに絞った（ADR 0013）。あわせて、`check_plan.sh` が止める条件を広げ、削除と作り直しに加えて、リソースの作成と、IAM のリソース・S3 のバケットポリシー・公開アクセスブロックの変更でも止まるようにした。「アクションの指定方法」の SHA での固定は、権限を絞ったあとも続ける。本番を書き換えられる権限であることは変わらないため。

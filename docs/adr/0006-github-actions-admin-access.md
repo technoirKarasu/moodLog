@@ -19,3 +19,5 @@ Terraformの実行基盤（Issue #7）で、GitHub ActionsがOIDC経由でAssume
 見直しの目安: Issue #14（GitHub ActionsでCI/CDを構築する）で実際に必要なデプロイ操作が確定した時点で、最小権限ポリシーに絞る（Issue #76 で、下のとおり #83 に変更）。
 
 Issue #76 で、main マージ時のデプロイ（ADR 0012）にこのロールを使い始めた。必要な操作はここで決まったが、tfstate のバケットを東京へ移す（Issue #25）のを先に行うため、権限は AdministratorAccess のまま。Issue #83 で、ADR 0012 のデプロイに必要な範囲に絞る。
+
+Issue #83 で AdministratorAccess を外し、既存のリソースの更新だけを許すポリシーに付け替えた。決め方は ADR 0013。
