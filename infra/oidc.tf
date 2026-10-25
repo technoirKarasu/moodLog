@@ -44,7 +44,7 @@ resource "aws_iam_role" "github_actions" {
 
 # デプロイ（docs/adr/0012-deploy.md）に必要な権限だけを持たせる（docs/adr/0013-github-actions-deploy-policy.md）。
 # Issue #83: AdministratorAccess から付け替えた。
-# マネージドポリシーは 6,144 文字まで。1つにまとめると超える（約 6,700 文字）ので、読み取りと書き込みで分ける。
+# マネージドポリシーは 6,144 文字まで。1つにまとめると超える（約 6,600 文字）ので、読み取りと書き込みで分ける。
 # 書き込みも上限に近い（約5,000文字）。超えるときは、サービスごとに3つ目のポリシーへ移す
 #
 # 読み取りは、terraform plan の refresh が属性を広く読むため、サービスごとのワイルドカードにする。
@@ -69,7 +69,6 @@ resource "aws_iam_policy" "github_actions_read" {
           "ec2:Describe*",
           "iam:Get*",
           "iam:List*",
-          "lambda:List*",
           "logs:Describe*",
           "logs:List*",
           "rds:Describe*",
@@ -84,9 +83,10 @@ resource "aws_iam_policy" "github_actions_read" {
         Resource = "*"
       },
       {
-        # GetFunction はコードのダウンロード URL と環境変数を返すので、moodlog の関数に絞る
+        # GetFunction はコードのダウンロード URL と環境変数を返すので、moodlog の関数に絞る。
+        # 対象 * の ListFunctions も、すべての関数の環境変数を返すので、List* も同じ対象に絞る（ListFunctions は許可されない）
         Effect = "Allow"
-        Action = "lambda:Get*"
+        Action = ["lambda:Get*", "lambda:List*"]
         Resource = [
           aws_lambda_function.api.arn,
           aws_lambda_function.migrate.arn,
@@ -130,7 +130,7 @@ resource "aws_iam_policy" "github_actions_read" {
   })
 }
 
-# 書き込みは、既存のリソースの更新だけを許す。作成・削除・作り直しと IAM の変更は、
+# 書き込みは、既存のリソースの更新だけを許す。作成・削除・作り直しと、IAM・S3 のバケットポリシー・公開アクセスブロックの変更は、
 # infra/scripts/check_plan.sh で止めて手元で apply するので、ここには含めない。
 # 名前に Delete を含む操作は、リソースを消さず、更新の中で属性を外すものだけを許す
 resource "aws_iam_policy" "github_actions_deploy" {
@@ -156,11 +156,6 @@ resource "aws_iam_policy" "github_actions_deploy" {
         Effect   = "Allow"
         Action   = ["s3:PutObject", "s3:DeleteObject"]
         Resource = "${aws_s3_bucket.frontend.arn}/*"
-      },
-      {
-        Effect   = "Allow"
-        Action   = ["s3:PutBucketPolicy", "s3:PutBucketPublicAccessBlock"]
-        Resource = aws_s3_bucket.frontend.arn
       },
       {
         Effect = "Allow"

@@ -68,7 +68,7 @@ GoogleのリダイレクトURIには Cognito のドメインが要り、Cognito 
 
 main にマージすると、GitHub Actions（`.github/workflows/deploy.yml`）が下の手順を自動で流す（ADR 0012）。手元で流すのは、次のときだけ。
 
-- 自動のデプロイが `infra/scripts/check_plan.sh` で止まったとき。リソースの作成・削除・作り直しか、IAM のリソース（`aws_iam_*`）の変更を含む plan で止まる。GitHub Actions のロールは既存のリソースの更新しかできないため（ADR 0013）。手元で plan の中身を確かめてから apply する
+- 自動のデプロイが `infra/scripts/check_plan.sh` で止まったとき。リソースの作成・削除・作り直しか、IAM のリソース（`aws_iam_*`）・S3 のバケットポリシー・公開アクセスブロックの変更を含む plan で止まる。GitHub Actions のロールは既存のリソースの更新しかできないため（ADR 0013）。手元で plan の中身を確かめてから apply する
 - 新しいリソースを足すとき。同じ PR で、`infra/oidc.tf` のポリシー（`moodlog-github-actions-deploy`）に、そのリソースを更新する権限を足す。ポリシーの変更は IAM の変更なので、マージしたら上のとおり手元で apply する
 - 自動のデプロイが、apply の途中で AccessDenied になったとき。ポリシーにない更新が要る変更をマージしたときに起きる。ポリシーを直す PR を出してマージし、手元で apply してから、止まったデプロイを `gh run rerun <実行ID>` で流し直す
 - 自動のデプロイが、apply の途中で切れたとき（ジョブのタイムアウトなど）。state のロックが残っていたら `terraform -chdir=infra force-unlock <ロックID>` で外してから流す
