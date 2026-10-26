@@ -66,6 +66,7 @@ moodLog のコードを、自分で説明・保守できるようになるため
 | `migrate.tf` | マイグレーションの Lambda |
 | `oidc.tf` | GitHub Actions が引き受けるロールと、その権限 |
 | `budgets.tf` | 月額の予算と通知 |
+| `main.tf`、`versions.tf`、`variables.tf`、`outputs.tf` | state の置き場所とプロバイダ、入力の変数、スクリプトが `terraform output` で読む値 |
 | `scripts/check_plan.sh` | 自動で apply しない変更を含む plan を止める |
 
 ### それ以外
@@ -138,7 +139,7 @@ moodLog のコードを、自分で説明・保守できるようになるため
 
 1. フロントの依存を入れる。依存のインストールスクリプトに AWS の認証情報を見せないよう、認証より先に行う
 2. OIDC で AWS のロールを引き受ける。引き受けられるのは main のワークフローだけ（`infra/oidc.tf`）
-3. Lambda の zip を作る（`backend/scripts/build_lambda.sh`）。コードが同じなら同じハッシュになり、Lambda が無駄に更新されない
+3. Lambda の zip を作る（`backend/scripts/build_lambda.sh`）。同じ環境・同じ依存で作れば同じハッシュになり、Lambda が無駄に更新されない（例外は `infra/README.md` の「デプロイ」）
 4. `terraform plan` で plan を保存し、`infra/scripts/check_plan.sh` が確かめる
 5. その plan を apply する。Lambda のコードもここで更新される
 6. マイグレーションを流す（`backend/scripts/migrate_prod.sh` が、VPC の中のマイグレーションの Lambda を呼ぶ。ADR 0011）
@@ -153,7 +154,7 @@ moodLog のコードを、自分で説明・保守できるようになるため
 | --- | --- | --- |
 | `check_plan.sh` | plan に、作成・削除・作り直しか、IAM・S3 のバケットポリシー・公開アクセスブロックの変更が入っている。GitHub Actions のロールは、既存のリソースの更新しかできない（ADR 0013） | `infra/README.md` の「デプロイ」。手元で plan を確かめて apply する |
 | apply の途中の AccessDenied | ロールの権限にない更新が要る変更をマージした | `infra/oidc.tf` のポリシーを直す PR を出し、手元で apply してから流し直す |
-| マイグレーション | ログには例外の型だけが出る。SQL 文などを公開のログに出さないため | CloudWatch Logs の `/aws/lambda/moodlog-migrate` |
+| マイグレーション | ログには例外の型だけが出る。SQL 文などを公開のログに出さないため | `backend/scripts/migrate_prod.sh` が失敗したときに出す案内のとおり、CloudWatch Logs を見る |
 
 新しい AWS のリソースを足すときは、同じ PR で `infra/oidc.tf` に、そのリソースを更新する権限も足す。作成も IAM の変更も `check_plan.sh` で止まるので、どちらにしても手元で apply することになる。
 
@@ -182,7 +183,7 @@ moodLog のコードを、自分で説明・保守できるようになるため
 
 ### 短文の文字数
 
-- 画面（`frontend/lib/mood.ts`）・API（`backend/app/routers/entries.py`）・DB の制約（`backend/app/models.py`）の3か所で、同じ数え方をする。前後の空白を除いてから、コードポイントで数える。絵文字で数がずれないようにするため
+- 画面（`frontend/lib/mood.ts`）・API（`backend/app/routers/entries.py`）・DB の制約（`backend/app/models.py`）の3か所で、コードポイントで数える。絵文字で数がずれないようにするため。前後の空白を除いてから数えるのは画面と API で、DB には API が空白を除いた値が入る
 - 上限の値は、frontend の `lib/mood.ts` と backend の `app/models.py` の `NOTE_MAX_LENGTH` に別々に持っている。変えるときは、両方とマイグレーション（DB の制約）を変える
 
 ### 気分の値
