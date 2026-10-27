@@ -31,7 +31,9 @@ def test_alembic_config_finds_migrations():
     # zip の中と同じ相対位置（alembic.ini と migrations/）で読めることを確かめる
     script = ScriptDirectory.from_config(migrate.alembic_config())
 
-    # マイグレーションが読めなければ head は0個。枝分かれしていれば2個以上になり、
-    # upgrade head が失敗する。どのリビジョンが head かは見ない
+    # 場所が誤っていれば from_config が失敗し、
+    # リビジョンが読めなければ head は0個になる。
+    # 枝分かれしていれば2個以上になり、upgrade head が失敗する。
+    # どのリビジョンが head かは見ない
     # （マイグレーションを足すたびに、このテストを直さずに済むよう）
     assert len(script.get_heads()) == 1
