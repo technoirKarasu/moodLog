@@ -61,8 +61,8 @@ resource "aws_lambda_function" "api" {
   memory_size   = 512
   timeout       = 10
 
-  # pipで作るzipはタイムスタンプが入るため、ビルドするたびにハッシュが変わり、Lambdaも更新される。
-  # 手元からのデプロイでは実害が小さいので許容し、CI/CD（Issue #14）で見直す
+  # zipは、同じマシンで同じコードから作れば同じハッシュになり、コードが変わったときだけLambdaが更新される
+  # （backend/scripts/build_lambda.sh、Issue #76。例外は infra/README.md の「デプロイ」）
   filename         = local.lambda_zip_path
   source_code_hash = filebase64sha256(local.lambda_zip_path)
 

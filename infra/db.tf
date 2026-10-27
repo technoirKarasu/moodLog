@@ -16,7 +16,7 @@ resource "aws_security_group" "db" {
   vpc_id      = aws_vpc.main.id
 
   ingress {
-    # VPC内からのPostgreSQL接続を許可。Lambdaも同じVPCに置く想定（Issue #10）
+    # VPC内からのPostgreSQL接続を許可。APIとマイグレーションのLambdaが同じVPCにある（受け入れ元をLambdaに絞るのは Issue #44）
     # ルールのdescriptionに使える文字はAWS側で英数字と一部の記号に限られるため、英語で書く
     description = "PostgreSQL from within the VPC"
     from_port   = 5432

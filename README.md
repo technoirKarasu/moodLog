@@ -38,7 +38,7 @@
 ### このあとの予定
 
 - 週末のまとめの生成方法を決め、実装する（[#32](https://github.com/technoirKarasu/moodLog/issues/32)）
-- 運用の守りを固める: Cognito のユーザープールの削除保護（[#86](https://github.com/technoirKarasu/moodLog/issues/86)）、GitHub Actions の権限を最小限に絞る（[#25](https://github.com/technoirKarasu/moodLog/issues/25) → [#83](https://github.com/technoirKarasu/moodLog/issues/83)）、依存ライブラリの版の固定（[#84](https://github.com/technoirKarasu/moodLog/issues/84)）
+- 運用の守りを固める: 依存ライブラリの版の固定（[#84](https://github.com/technoirKarasu/moodLog/issues/84)）
 - 実際の PostgreSQL を使った自動テスト（[#77](https://github.com/technoirKarasu/moodLog/issues/77)）
 
 ほかの作業は [Issues](https://github.com/technoirKarasu/moodLog/issues) にある。

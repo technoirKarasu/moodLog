@@ -3,7 +3,7 @@
 #
 # 予算額30ドルの根拠: 現時点の見込みはRDSの月約15ドル（docs/adr/0002-database.md）。
 # Lambda・API Gateway・CloudFrontは無料枠の範囲の想定で、その2倍程度を上限にする。
-# VPCエンドポイントやNATゲートウェイを足すとき（Issue #10）は見直す。
+# VPCエンドポイントやNATゲートウェイを足すときは見直す（週報の生成方法とあわせて Issue #32 で決める）。
 
 resource "aws_budgets_budget" "monthly" {
   name         = "moodlog-monthly"
